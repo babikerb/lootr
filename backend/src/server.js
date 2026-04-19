@@ -1,24 +1,22 @@
 import express from 'express';
 import dotenv from 'dotenv';
 import gameRoutes from './routes/game.routes.js';
+import scanRoutes from './routes/scan.routes.js';
 
-// Load environment variables .env file
 dotenv.config();
 
-// Initialize the Express application
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-//allows your server to understand JSON data sent from the mobile app
-app.use(express.json()); 
+// Increase limit to handle base64-encoded images from the mobile client
+app.use(express.json({ limit: '10mb' }));
 
-// making sure server is actually awake before testing the AI
 app.get('/health', (req, res) => {
   res.status(200).json({ status: 'ok', message: 'Lootr Backend is running! 🚀' });
 });
 
-// Mount feature routes 
 app.use('/api/v1/game', gameRoutes);
+app.use('/api/v1/scan', scanRoutes);
 
 // 6. Start the server
 app.listen(PORT, () => {

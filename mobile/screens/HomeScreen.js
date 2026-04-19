@@ -1,7 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
+import * as ImageManipulator from 'expo-image-manipulator';
 import * as ImagePicker from 'expo-image-picker';
+import { useState } from 'react';
 import {
+  ActivityIndicator,
   Alert,
+  Modal,
   ScrollView,
   StyleSheet,
   Text,
@@ -11,6 +15,8 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS } from '../theme';
 
+const API_URL = process.env.EXPO_PUBLIC_API_URL;
+
 const RECENT_GAMES = [
   { id: '1', title: 'Basketball Dodge',  type: 'dodge',   plays: 42, icon: 'basketball',          color: COLORS.coral },
   { id: '2', title: 'Book Stack', type: 'stack', plays: 17, icon: 'book',      color: COLORS.anemone },
@@ -18,15 +24,64 @@ const RECENT_GAMES = [
   { id: '4', title: 'Book Swipe',    type: 'swipe',   plays: 33, icon: 'swap-horizontal', color: COLORS.seafoam },
 ];
 
+const GAME_TYPE_ICONS = {
+  dodge: 'flash',
+  catch: 'hand-left',
+  balance: 'git-branch',
+  swipe: 'swap-horizontal',
+  timing: 'timer',
+  runner: 'walk',
+};
+
 export default function HomeScreen({ navigation }) {
   const insets = useSafeAreaInsets();
+  const [scanning, setScanning] = useState(false);
+  const [scanResult, setScanResult] = useState(null);
 
   async function openCamera() {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
-    if (status !== 'granted') return;
-    const result = await ImagePicker.launchCameraAsync({ quality: 0.85, allowsEditing: false });
-    if (!result.canceled) {
-      Alert.alert('Coming Soon', 'Game scanning is on its way!', [{ text: 'OK' }]);
+    if (status !== 'granted') {
+      Alert.alert('Permission Denied', 'Camera access is required to scan objects.');
+      return;
+    }
+
+    const result = await ImagePicker.launchCameraAsync({ quality: 0.8, allowsEditing: false });
+    if (result.canceled) return;
+
+    try {
+      setScanning(true);
+
+      // Resize to 512px wide — vision models don't need full resolution
+      const resized = await ImageManipulator.manipulateAsync(
+        result.assets[0].uri,
+        [{ resize: { width: 512 } }],
+        { compress: 0.6, format: ImageManipulator.SaveFormat.JPEG, base64: true }
+      );
+      const base64 = resized.base64;
+      console.log('[SCAN] base64 length after resize:', base64?.length ?? 'UNDEFINED');
+      console.log('[SCAN] POSTing to:', `${API_URL}/api/v1/scan`);
+
+      const response = await fetch(`${API_URL}/api/v1/scan`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ image: base64 }),
+      });
+
+      console.log('[SCAN] Response status:', response.status);
+      if (!response.ok) {
+        const body = await response.text();
+        console.error('[SCAN] Error body:', body);
+        throw new Error(`Server error ${response.status}: ${body}`);
+      }
+
+      const data = await response.json();
+      console.log('[SCAN] Result:', JSON.stringify(data));
+      setScanResult(data);
+    } catch (error) {
+      console.error('[SCAN] Fetch error:', error.message);
+      Alert.alert('Scan Failed', error.message || 'Could not reach the server.');
+    } finally {
+      setScanning(false);
     }
   }
 
@@ -56,9 +111,18 @@ export default function HomeScreen({ navigation }) {
             <Text style={styles.heroSub}>
               Point your camera at an object and watch it become a game.
             </Text>
-            <TouchableOpacity style={styles.scanBtn} onPress={openCamera} activeOpacity={0.85}>
-              <Ionicons name="camera" size={20} color={COLORS.bg} />
-              <Text style={styles.scanText}>Scan Object</Text>
+            <TouchableOpacity
+              style={[styles.scanBtn, scanning && styles.scanBtnDisabled]}
+              onPress={openCamera}
+              activeOpacity={0.85}
+              disabled={scanning}
+            >
+              {scanning ? (
+                <ActivityIndicator size="small" color={COLORS.bg} />
+              ) : (
+                <Ionicons name="camera" size={20} color={COLORS.bg} />
+              )}
+              <Text style={styles.scanText}>{scanning ? 'Scanning...' : 'Scan Object'}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -87,6 +151,60 @@ export default function HomeScreen({ navigation }) {
           </TouchableOpacity>
         ))}
       </ScrollView>
+
+      {/* Scan Result Modal */}
+      <Modal
+        visible={!!scanResult}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setScanResult(null)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalCard, { paddingBottom: insets.bottom + 24 }]}>
+            <View style={styles.modalHandle} />
+
+            <Text style={styles.modalLabel}>Object Detected</Text>
+            <Text style={styles.modalObject}>{scanResult?.objectLabel}</Text>
+
+            <View style={styles.divider} />
+
+            <Text style={styles.modalLabel}>Generated Game</Text>
+            <Text style={styles.modalGameTitle}>{scanResult?.gameConfig?.title}</Text>
+
+            <View style={styles.badgeRow}>
+              <View style={styles.badge}>
+                <Ionicons
+                  name={GAME_TYPE_ICONS[scanResult?.gameConfig?.gameType] || 'game-controller'}
+                  size={14}
+                  color={COLORS.seafoam}
+                />
+                <Text style={styles.badgeText}>{scanResult?.gameConfig?.gameType?.toUpperCase()}</Text>
+              </View>
+              <View style={styles.badge}>
+                <Ionicons name="speedometer-outline" size={14} color={COLORS.highlight} />
+                <Text style={[styles.badgeText, { color: COLORS.highlight }]}>
+                  speed {scanResult?.gameConfig?.parameters?.speed?.toFixed(1)}
+                </Text>
+              </View>
+              <View style={styles.badge}>
+                <Ionicons name="planet-outline" size={14} color={COLORS.anemone} />
+                <Text style={[styles.badgeText, { color: COLORS.anemone }]}>
+                  gravity {scanResult?.gameConfig?.parameters?.gravity?.toFixed(1)}
+                </Text>
+              </View>
+            </View>
+
+            <TouchableOpacity style={styles.playBtn} disabled activeOpacity={0.7}>
+              <Ionicons name="game-controller-outline" size={18} color={COLORS.textMuted} />
+              <Text style={styles.playBtnText}>Game Coming Soon</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.dismissBtn} onPress={() => setScanResult(null)}>
+              <Text style={styles.dismissText}>Dismiss</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -158,6 +276,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     marginTop: 4,
   },
+  scanBtnDisabled: { opacity: 0.6 },
   scanText: { color: COLORS.bg, fontSize: 16, fontWeight: '700', letterSpacing: 0.3 },
 
   sectionRow: {
@@ -190,4 +309,102 @@ const styles = StyleSheet.create({
   gameInfo: { flex: 1 },
   gameTitle: { color: COLORS.text, fontSize: 15, fontWeight: '600' },
   gameMeta: { fontSize: 12, marginTop: 2, textTransform: 'capitalize' },
+
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.65)',
+  },
+  modalCard: {
+    backgroundColor: COLORS.surface,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    borderTopWidth: 1,
+    borderColor: COLORS.cyan + '44',
+    paddingTop: 12,
+    paddingHorizontal: 24,
+  },
+  modalHandle: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: COLORS.textDim,
+    alignSelf: 'center',
+    marginBottom: 24,
+  },
+  modalLabel: {
+    color: COLORS.textMuted,
+    fontSize: 11,
+    fontWeight: '600',
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+    marginBottom: 6,
+  },
+  modalObject: {
+    color: COLORS.text,
+    fontSize: 28,
+    fontWeight: '700',
+    textTransform: 'capitalize',
+    marginBottom: 20,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: COLORS.surfaceLighter,
+    marginBottom: 20,
+  },
+  modalGameTitle: {
+    color: COLORS.text,
+    fontSize: 20,
+    fontWeight: '700',
+    marginBottom: 16,
+  },
+  badgeRow: {
+    flexDirection: 'row',
+    gap: 8,
+    flexWrap: 'wrap',
+    marginBottom: 28,
+  },
+  badge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: COLORS.surfaceLighter,
+    borderRadius: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+  },
+  badgeText: {
+    color: COLORS.seafoam,
+    fontSize: 12,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  playBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: COLORS.surfaceLighter,
+    borderRadius: 14,
+    paddingVertical: 15,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: COLORS.cyan + '22',
+  },
+  playBtnText: {
+    color: COLORS.textMuted,
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  dismissBtn: {
+    alignItems: 'center',
+    paddingVertical: 14,
+  },
+  dismissText: {
+    color: COLORS.textMuted,
+    fontSize: 14,
+    fontWeight: '600',
+  },
 });
