@@ -23,4 +23,6 @@ MAPPING LOGIC:
 - "balance": Tall or oddly shaped objects (e.g., bottle, broom).
 - "swipe": Objects you slice or move quickly (e.g., paper, card, fruit).
 - "runner" or "timing": Vehicles, animals, or characters.
+- "dodge" is preferred for objects that are typically avoided, while "catch" is for objects that are typically caught.
+- "timing" is for objects where reaction time is key, while "runner" is for objects associated with movement.
 `;
