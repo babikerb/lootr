@@ -1,6 +1,7 @@
 import Groq from 'groq-sdk';
+import { getIconForObject } from '../utils/iconMapping.js';
 import { generateSystemPrompt } from '../utils/prompts.js';
-import { GameConfigSchema, FALLBACK_CONFIG } from '../utils/validation.js';
+import { FALLBACK_CONFIG, GameConfigSchema } from '../utils/validation.js';
 
 export async function identifyObject(base64Image) {
   try {
@@ -52,15 +53,39 @@ export async function generateGameConfig(objectLabel) {
     });
 
     const rawContent = chatCompletion.choices[0]?.message?.content;
-    const parsedJson = JSON.parse(rawContent);
+    let parsedJson = JSON.parse(rawContent);
     
     // Validate with Zod
-    return GameConfigSchema.parse(parsedJson);
+    const validated = GameConfigSchema.parse(parsedJson);
+
+    // Apply icon override: if the LLM returned an icon, validate it
+    // If it looks wrong, use our intelligent fallback based on the object label
+    if (validated.icon && validated.icon.name) {
+      // Check if icon is in our verified mapping (basic sanity check)
+      // For now, trust the LLM but log warnings for invalid-looking icons
+      const mappedIcon = getIconForObject(objectLabel);
+      console.log(`[DEBUG] LLM icon: ${validated.icon.library}:${validated.icon.name}`);
+      console.log(`[DEBUG] Mapped icon: ${mappedIcon.library}:${mappedIcon.name}`);
+      
+      // If LLM icon seems generic/fallback, replace with our mapping
+      if (validated.icon.name === 'cube-outline' || validated.icon.name === 'cube' || validated.icon.name === 'help') {
+        console.log(`[DEBUG] Replacing generic icon with mapped icon`);
+        validated.icon = mappedIcon;
+      }
+    }
+
+    return validated;
 
   } catch (error) {
     console.error("CRITICAL LLM/VALIDATION ERROR");
     console.error("LLM Error:", error.message);
-    // Return the imported fallback
-    return FALLBACK_CONFIG;
+    
+    // Return a smarter fallback: use the icon mapping
+    const smartFallback = {
+      ...FALLBACK_CONFIG,
+      icon: getIconForObject(objectLabel)
+    };
+    
+    return smartFallback;
   }
 }

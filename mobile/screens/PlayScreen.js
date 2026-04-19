@@ -14,6 +14,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { COLORS } from "../theme";
+import { validateIcon } from "../utils/iconValidator";
 
 const { width: W, height: H } = Dimensions.get("window");
 const PLAYER_W = 72,
@@ -24,8 +25,8 @@ const PLAYER_Y = H - 180;
 const PLAYER_SPEED = 7;
 
 function ObjectIcon({ icon, size, color }) {
-  if (!icon) return <Ionicons name="cube-outline" size={size} color={color} />;
-  const { library: lib, name } = icon;
+  const validIcon = validateIcon(icon);
+  const { library: lib, name } = validIcon;
   if (lib === "mci")
     return <MaterialCommunityIcons name={name} size={size} color={color} />;
   if (lib === "fa5")
@@ -64,6 +65,17 @@ export default function PlayScreen({ route, navigation }) {
   // Determine if we should show choice screen
   const shouldShowChoice = ["catch", "dodge"].includes(suggestedGameType) && !selectedGameType;
   const gameType = selectedGameType || suggestedGameType;
+
+  // Generate title based on selected game type
+  const generateTitle = (type, label) => {
+    const action = type === "catch" ? "Catch" : "Dodge";
+    return `${action} the ${label}`;
+  };
+
+  // Use generated title after selection, or use gameConfig title before
+  const displayTitle = selectedGameType 
+    ? generateTitle(gameType, objectLabel || "Objects")
+    : gameConfig?.title ?? "Dodge!";
 
   useEffect(() => {
     if (phase !== "playing") return;
@@ -169,13 +181,8 @@ export default function PlayScreen({ route, navigation }) {
           <Ionicons name="chevron-back" size={22} color={COLORS.text} />
         </TouchableOpacity>
         <Text style={styles.title} numberOfLines={1}>
-          {gameConfig?.title ?? "Dodge!"}
+          {shouldShowChoice ? "Choose Your Game" : displayTitle}
         </Text>
-        <View style={[styles.scoreBadge, { borderColor: objectColor + "55" }]}>
-          <Text style={[styles.scoreText, { color: objectColor }]}>
-            {phase === "playing" ? s.score : displayScore}
-          </Text>
-        </View>
       </View>
 
       <View style={styles.canvas}>
@@ -331,7 +338,7 @@ export default function PlayScreen({ route, navigation }) {
               <ObjectIcon icon={gameConfig?.icon} size={52} color={objectColor} />
             </View>
             <Text style={styles.overlayTitle}>
-              {gameConfig?.title ?? "Dodge!"}
+              {displayTitle}
             </Text>
             <Text style={[styles.overlayObject, { color: objectColor }]}>
               {objectLabel}
