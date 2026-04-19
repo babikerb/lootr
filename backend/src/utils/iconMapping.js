@@ -106,7 +106,7 @@ const ICON_LIBRARY_MAPPING = {
   'pencil': { library: 'mci', name: 'pencil' },
   'pen': { library: 'mci', name: 'pen' },
   'marker': { library: 'mci', name: 'marker' },
-  'paper': { library: 'ion', name: 'document-outline' },
+  'paper': { library: 'mci', name: 'file-document-outline' },
   'book': { library: 'mci', name: 'book' },
   'notebook': { library: 'mci', name: 'notebook' },
   'magazine': { library: 'mci', name: 'magazine' },
@@ -149,18 +149,18 @@ const ICON_LIBRARY_MAPPING = {
   'key': { library: 'mci', name: 'key' },
   'keys': { library: 'mci', name: 'key-multiple' },
   'wallet': { library: 'mci', name: 'wallet' },
-  'phone': { library: 'ion', name: 'phone-portrait-outline' },
-  'smartphone': { library: 'ion', name: 'phone-portrait-outline' },
-  'iphone': { library: 'ion', name: 'phone-portrait-outline' },
-  'android': { library: 'ion', name: 'phone-portrait-outline' },
-  'tablet': { library: 'ion', name: 'tablet-landscape-outline' },
+  'phone': { library: 'mci', name: 'cellphone' },
+  'smartphone': { library: 'mci', name: 'cellphone' },
+  'iphone': { library: 'mci', name: 'cellphone' },
+  'android': { library: 'mci', name: 'cellphone' },
+  'tablet': { library: 'mci', name: 'tablet' },
   'laptop': { library: 'mci', name: 'laptop' },
   'computer': { library: 'mci', name: 'desktop-tower' },
   'keyboard': { library: 'mci', name: 'keyboard' },
   'mouse': { library: 'mci', name: 'mouse' },
   'headphones': { library: 'mci', name: 'headphones' },
   'earbuds': { library: 'mci', name: 'earbuds' },
-  'camera': { library: 'ion', name: 'camera-outline' },
+  'camera': { library: 'mci', name: 'camera' },
 
   // === ANIMALS
   'dog': { library: 'mci', name: 'dog' },
@@ -190,8 +190,8 @@ const ICON_LIBRARY_MAPPING = {
   'motorcycle': { library: 'mci', name: 'motorcycle' },
   'truck': { library: 'mci', name: 'truck' },
   'bus': { library: 'mci', name: 'bus' },
-  'airplane': { library: 'ion', name: 'airplane-outline' },
-  'plane': { library: 'ion', name: 'airplane-outline' },
+  'airplane': { library: 'mci', name: 'airplane' },
+  'plane': { library: 'mci', name: 'airplane' },
   'helicopter': { library: 'mci', name: 'helicopter' },
   'boat': { library: 'mci', name: 'boat' },
   'train': { library: 'mci', name: 'train' },
@@ -237,8 +237,8 @@ const ICON_LIBRARY_MAPPING = {
   'saxophone': { library: 'mci', name: 'saxophone' },
 
   // === MISC COMMON ITEMS
-  'box': { library: 'ion', name: 'cube-outline' },
-  'cube': { library: 'ion', name: 'cube-outline' },
+  'box': { library: 'mci', name: 'cube-outline' },
+  'cube': { library: 'mci', name: 'cube-outline' },
   'coin': { library: 'mci', name: 'coin' },
   'coins': { library: 'mci', name: 'coin-multiple' },
   'money': { library: 'mci', name: 'cash' },
@@ -260,7 +260,7 @@ const ICON_LIBRARY_MAPPING = {
  */
 export function getIconForObject(objectLabel) {
   if (!objectLabel || typeof objectLabel !== 'string') {
-    return { library: 'ion', name: 'cube-outline' };
+    return { library: 'mci', name: 'cube-outline' };
   }
 
   const normalized = objectLabel.toLowerCase().trim();
@@ -285,5 +285,5 @@ export function getIconForObject(objectLabel) {
   }
 
   console.warn(`[ICON] No mapping found for "${objectLabel}", using fallback`);
-  return { library: 'ion', name: 'cube-outline' };
+  return { library: 'mci', name: 'cube-outline' };
 }

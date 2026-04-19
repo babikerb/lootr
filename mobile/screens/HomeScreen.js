@@ -24,14 +24,6 @@ const RECENT_GAMES = [
   { id: '4', title: 'Book Swipe',    type: 'swipe',   plays: 33, icon: 'swap-horizontal', color: COLORS.seafoam },
 ];
 
-const GAME_TYPE_ICONS = {
-  dodge: 'flash',
-  catch: 'hand-left',
-  balance: 'git-branch',
-  swipe: 'swap-horizontal',
-  timing: 'timer',
-  runner: 'walk',
-};
 
 export default function HomeScreen({ navigation }) {
   const insets = useSafeAreaInsets();
@@ -165,34 +157,6 @@ export default function HomeScreen({ navigation }) {
 
             <Text style={styles.modalLabel}>Object Detected</Text>
             <Text style={styles.modalObject}>{scanResult?.objectLabel}</Text>
-
-            <View style={styles.divider} />
-
-            <Text style={styles.modalLabel}>Generated Game</Text>
-            <Text style={styles.modalGameTitle}>{scanResult?.gameConfig?.title}</Text>
-
-            <View style={styles.badgeRow}>
-              <View style={styles.badge}>
-                <Ionicons
-                  name={GAME_TYPE_ICONS[scanResult?.gameConfig?.gameType] || 'game-controller'}
-                  size={14}
-                  color={COLORS.seafoam}
-                />
-                <Text style={styles.badgeText}>{scanResult?.gameConfig?.gameType?.toUpperCase()}</Text>
-              </View>
-              <View style={styles.badge}>
-                <Ionicons name="speedometer-outline" size={14} color={COLORS.highlight} />
-                <Text style={[styles.badgeText, { color: COLORS.highlight }]}>
-                  speed {scanResult?.gameConfig?.parameters?.speed?.toFixed(1)}
-                </Text>
-              </View>
-              <View style={styles.badge}>
-                <Ionicons name="planet-outline" size={14} color={COLORS.anemone} />
-                <Text style={[styles.badgeText, { color: COLORS.anemone }]}>
-                  gravity {scanResult?.gameConfig?.parameters?.gravity?.toFixed(1)}
-                </Text>
-              </View>
-            </View>
 
             <TouchableOpacity
               style={styles.playBtn}
@@ -354,39 +318,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     textTransform: 'capitalize',
     marginBottom: 20,
-  },
-  divider: {
-    height: 1,
-    backgroundColor: COLORS.surfaceLighter,
-    marginBottom: 20,
-  },
-  modalGameTitle: {
-    color: COLORS.text,
-    fontSize: 20,
-    fontWeight: '700',
-    marginBottom: 16,
-  },
-  badgeRow: {
-    flexDirection: 'row',
-    gap: 8,
-    flexWrap: 'wrap',
-    marginBottom: 28,
-  },
-  badge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    backgroundColor: COLORS.surfaceLighter,
-    borderRadius: 8,
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-  },
-  badgeText: {
-    color: COLORS.seafoam,
-    fontSize: 12,
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
   },
   playBtn: {
     flexDirection: 'row',

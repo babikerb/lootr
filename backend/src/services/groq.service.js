@@ -67,6 +67,8 @@ export async function generateGameConfig(objectLabel) {
       console.log(`[DEBUG] LLM icon: ${validated.icon.library}:${validated.icon.name}`);
       console.log(`[DEBUG] Mapped icon: ${mappedIcon.library}:${mappedIcon.name}`);
       
+      // Force mci library always
+      validated.icon.library = 'mci';
       // If LLM icon seems generic/fallback, replace with our mapping
       if (validated.icon.name === 'cube-outline' || validated.icon.name === 'cube' || validated.icon.name === 'help') {
         console.log(`[DEBUG] Replacing generic icon with mapped icon`);
