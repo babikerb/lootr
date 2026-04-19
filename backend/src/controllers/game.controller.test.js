@@ -28,6 +28,7 @@ describe('POST /api/v1/game/generate', () => {
     const mockSuccessResponse = {
       gameType: "swipe",
       title: "Slice the Apple",
+      rules: ["Swipe your finger to slice!", "Don't hit the bombs!"],
       parameters: { speed: 1.5, gravity: 1.2 }
     };
     // Force our fake mock to return the success response

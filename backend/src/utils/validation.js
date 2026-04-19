@@ -4,6 +4,7 @@ import { z } from 'zod';
 export const GameConfigSchema = z.object({
   gameType: z.enum(['dodge', 'catch', 'balance', 'swipe', 'timing', 'runner']),
   title: z.string().max(30),
+  rules: z.array(z.string()).min(1).max(3),
   parameters: z.object({
     speed: z.number().min(0.1).max(3.0),
     gravity: z.number().min(0.1).max(3.0)
