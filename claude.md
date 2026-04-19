@@ -82,6 +82,14 @@ Users:
 
 ---
 
+# 🎨 Theme
+
+**Style:** Deep sea. Dark, muted, oceanic.
+
+All colors live in `mobile/theme.js` — always import from there, never hardcode hex values.
+
+---
+
 # 🧠 AI Integration Rules
 
 - Only ONE LLM call per scan
@@ -96,3 +104,12 @@ Example:
   "title": "Bottle Dodge",
   "speed": 1.2
 }
+
+# DO NOT IMPLEMENT
+- Authentication systems
+- Complex user profiles
+- Real-time multiplayer
+- Advanced physics engines
+- Overly dynamic AI-generated logic
+
+
