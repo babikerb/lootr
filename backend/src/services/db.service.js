@@ -55,6 +55,45 @@ export const getAllGamesFromDB = async () => {
   }
 };
 
+export const getMapGamesFromDB = async () => {
+  try {
+    const result = await pool.query(`
+      SELECT *
+      FROM games
+      ORDER BY
+        CASE
+          WHEN latitude IS NOT NULL AND longitude IS NOT NULL THEN 0
+          ELSE 1
+        END,
+        created_at DESC
+    `);
+
+    return result.rows;
+  } catch (error) {
+    console.error('[DB] Error fetching map games:', error);
+    throw error;
+  }
+};
+
+export const updateGameLocationInDB = async (gameId, latitude, longitude) => {
+  try {
+    const result = await pool.query(
+      `
+        UPDATE games
+        SET latitude = $2, longitude = $3
+        WHERE id = $1
+        RETURNING *;
+      `,
+      [gameId, latitude, longitude]
+    );
+
+    return result.rows[0] ?? null;
+  } catch (error) {
+    console.error('[DB] Error updating game location:', error);
+    throw error;
+  }
+};
+
 export const saveLaunchLocationToDB = async (latitude, longitude) => {
   try {
     await ensureLaunchLocationsTable();
