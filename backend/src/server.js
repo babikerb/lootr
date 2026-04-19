@@ -3,6 +3,7 @@ import dotenv from 'dotenv';
 import gameRoutes from './routes/game.routes.js';
 import './utils/db.js';
 import scanRoutes from './routes/scan.routes.js';
+import locationRoutes from './routes/location.routes.js';
 
 dotenv.config();
 
@@ -18,6 +19,7 @@ app.get('/health', (req, res) => {
 
 app.use('/api/v1/game', gameRoutes);
 app.use('/api/v1/scan', scanRoutes);
+app.use('/api/v1/location', locationRoutes);
 
 // Start the server
 app.listen(PORT, () => {

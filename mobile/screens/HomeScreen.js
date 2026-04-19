@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as ImageManipulator from 'expo-image-manipulator';
 import * as ImagePicker from 'expo-image-picker';
+import * as Location from 'expo-location';
 import { useState } from 'react';
 import {
   ActivityIndicator,
@@ -43,6 +44,17 @@ export default function HomeScreen({ navigation }) {
     try {
       setScanning(true);
 
+      const locationPermission = await Location.requestForegroundPermissionsAsync();
+      if (locationPermission.status !== 'granted') {
+        Alert.alert('Permission Denied', 'Location access is required to save coordinates for scanned games.');
+        return;
+      }
+
+      const position = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+      });
+      const { latitude, longitude } = position.coords;
+
       // Resize to 512px wide — vision models don't need full resolution
       const resized = await ImageManipulator.manipulateAsync(
         result.assets[0].uri,
@@ -51,12 +63,17 @@ export default function HomeScreen({ navigation }) {
       );
       const base64 = resized.base64;
       console.log('[SCAN] base64 length after resize:', base64?.length ?? 'UNDEFINED');
+      console.log(`[SCAN] Coordinates captured: [${latitude}, ${longitude}]`);
       console.log('[SCAN] POSTing to:', `${API_URL}/api/v1/scan`);
 
       const response = await fetch(`${API_URL}/api/v1/scan`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ image: base64 }),
+        body: JSON.stringify({
+          image: base64,
+          latitude,
+          longitude,
+        }),
       });
 
       console.log('[SCAN] Response status:', response.status);

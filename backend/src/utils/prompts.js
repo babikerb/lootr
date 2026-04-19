@@ -19,7 +19,7 @@ SCHEMA:
   "parameters": { "speed": 1.0, "gravity": 1.0 }
 }
 
-GAME TYPE RULES — pick the BEST fit primary, then ALWAYS include at least one alternate >= 0.70:
+GAME TYPE RULES — pick the BEST fit primary. Only include alternates when they are genuinely strong, human-plausible second choices:
 - "balance": Tall, thin, or top-heavy objects that would fall over (pen, pencil, broom, bottle, bat, ruler, candle, umbrella, stick, wand, staff, chopstick, marker). PRIMARY for anything elongated.
 - "catch": Small, round, light objects people naturally catch (apple, orange, coin, egg, small ball, grape, marshmallow, cherry). PRIMARY for palm-sized round food/objects.
 - "dodge": Heavy, hard, or dangerous falling objects (rock, brick, bowling ball, anvil, weight, dumbbell, boot, can, phone). PRIMARY for things you'd flinch from.
@@ -27,7 +27,11 @@ GAME TYPE RULES — pick the BEST fit primary, then ALWAYS include at least one 
 - "runner": Living creatures or wheeled vehicles (dog, cat, bird, bee, car, bicycle, horse, ant, robot, drone). PRIMARY for anything that moves on its own.
 - "timing": Rhythm/beat/precision objects (metronome, drum, clock, watch, yo-yo, bell, bouncing ball). PRIMARY when timing/rhythm is the core association.
 
-REQUIRED: alternates MUST always have at least 1 entry with confidence >= 0.70.
+ALTERNATES RULES:
+- Return 0 to 2 alternates total.
+- Do NOT include weak, generic, or filler alternates just to satisfy the schema.
+- Only include an alternate if a real person would say "yeah, that could also work."
+- If the primary fit is clearly best, return an empty alternates array.
 Examples:
 - Pen → gameType:"balance" 0.92, alternates:[{swipe,0.75}]
 - Pencil → gameType:"balance" 0.90, alternates:[{swipe,0.72}]
@@ -39,6 +43,8 @@ Examples:
 - Leaf → gameType:"swipe" 0.88, alternates:[{catch,0.75},{timing,0.72}]
 - Watch → gameType:"timing" 0.90, alternates:[{dodge,0.72}]
 - Card → gameType:"swipe" 0.92, alternates:[{timing,0.74}]
+- Spoon → gameType:"balance" 0.91, alternates:[]
+- Mug → gameType:"catch" 0.86, alternates:[]
 
 COLOR: Use the real-world dominant color of the object as a hex code.
 
