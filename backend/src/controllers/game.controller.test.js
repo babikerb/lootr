@@ -1,6 +1,6 @@
-import request from 'supertest';
-import express from 'express';
 import { jest } from '@jest/globals'; // Import Jest's global object for ESM
+import express from 'express';
+import request from 'supertest';
 import { FALLBACK_CONFIG } from '../utils/validation.js';
 
 // Mock the service BEFORE importing the files that use it
@@ -28,6 +28,7 @@ describe('POST /api/v1/game/generate', () => {
     const mockSuccessResponse = {
       gameType: "swipe",
       title: "Slice the Apple",
+      icon: { library: "mci", name: "food-apple" },
       parameters: { speed: 1.5, gravity: 1.2 }
     };
     // Force our fake mock to return the success response
@@ -40,6 +41,7 @@ describe('POST /api/v1/game/generate', () => {
     expect(response.status).toBe(200);
     expect(response.body.gameType).toBe('swipe');
     expect(response.body.title).toBe('Slice the Apple');
+    expect(response.body.icon).toEqual({ library: "mci", name: "food-apple" });
     expect(groqService.generateGameConfig).toHaveBeenCalledWith('apple'); 
   });
 

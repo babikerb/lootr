@@ -23,78 +23,9 @@ const OBS_W = 60,
 const PLAYER_Y = H - 180;
 const PLAYER_SPEED = 7;
 
-// [keywords, library, iconName]  library: 'mci' | 'fa5' | 'ion'
-const ICON_ENTRIES = [
-  [["bottle", "wine"], "mci", "bottle-wine"],
-  [["water"], "mci", "bottle-water"],
-  [["can", "soda", "tin"], "mci", "bottle-soda"],
-  [["basketball"], "mci", "basketball"],
-  [["tennis"], "mci", "tennis-ball"],
-  [["baseball"], "mci", "baseball"],
-  [["volleyball"], "mci", "volleyball"],
-  [["football", "nfl"], "fa5", "football-ball"],
-  [["soccer", "futbol"], "fa5", "futbol"],
-  [["ball"], "mci", "handball"],
-  [["book"], "mci", "book-open-variant"],
-  [["notebook"], "mci", "notebook"],
-  [["paper", "document"], "mci", "file-document"],
-  [["cup", "mug", "coffee"], "mci", "coffee"],
-  [["phone", "mobile"], "mci", "cellphone"],
-  [["laptop"], "mci", "laptop"],
-  [["computer", "monitor"], "mci", "monitor"],
-  [["keyboard"], "mci", "keyboard"],
-  [["mouse"], "mci", "mouse"],
-  [["headphones", "headset"], "mci", "headphones"],
-  [["earbuds", "airpods"], "ion", "headset"],
-  [["camera"], "mci", "camera"],
-  [["watch"], "mci", "watch"],
-  [["key"], "mci", "key"],
-  [["wallet"], "mci", "wallet"],
-  [["bag", "backpack", "purse"], "mci", "bag-personal"],
-  [["chair"], "mci", "chair-rolling"],
-  [["scissors"], "mci", "content-cut"],
-  [["pen"], "mci", "pen"],
-  [["pencil"], "mci", "pencil"],
-  [["glasses", "spectacles"], "mci", "glasses"],
-  [["sunglasses", "shades"], "mci", "sunglasses"],
-  [["shoe", "sneaker", "boot"], "mci", "shoe-sneaker"],
-  [["hat", "cap"], "mci", "hat-fedora"],
-  [["plant", "flower", "pot"], "mci", "flower"],
-  [["clock"], "mci", "clock-outline"],
-  [["lamp", "light"], "mci", "lamp"],
-  [["remote"], "mci", "remote"],
-  [["charger", "plug", "cable"], "mci", "power-plug"],
-  [["umbrella"], "mci", "umbrella"],
-  [["apple"], "mci", "food-apple"],
-  [["banana"], "fa5", "lemon"],
-  [["food", "snack"], "mci", "food"],
-  [["car", "vehicle"], "mci", "car"],
-  [["bike", "bicycle"], "mci", "bicycle"],
-  [["tool", "wrench", "hammer"], "mci", "tools"],
-];
-
-/**
- * Fetches the library and name for a given label
- */
-function getIconEntry(label) {
-  if (!label) return { lib: "ion", name: "cube-outline" };
-  const lower = label.toLowerCase();
-  for (const [keywords, lib, name] of ICON_ENTRIES) {
-    if (keywords.some((k) => lower.includes(k))) return { lib, name };
-  }
-  return { lib: "ion", name: "cube-outline" };
-}
-
-/**
- * Helper specifically for logic that only needs the string name
- * (Used for components that expect a specific library like MaterialCommunityIcons)
- */
-function getIcon(label) {
-  return getIconEntry(label).name;
-}
-
-function ObjectIcon({ label, size, color }) {
-  const { lib, name } = getIconEntry(label);
+function ObjectIcon({ icon, size, color }) {
+  if (!icon) return <Ionicons name="cube-outline" size={size} color={color} />;
+  const { library: lib, name } = icon;
   if (lib === "mci")
     return <MaterialCommunityIcons name={name} size={size} color={color} />;
   if (lib === "fa5")
@@ -191,11 +122,10 @@ export default function PlayScreen({ route, navigation }) {
     setPhase("playing");
   }
 
-  const s = gameRef.current;
-  const level = Math.min(Math.floor(s.elapsed / 8000) + 1, 10);
-  const iconName = getIcon(objectLabel);
+   const s = gameRef.current;
+   const level = Math.min(Math.floor(s.elapsed / 8000) + 1, 10);
 
-  return (
+   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.header}>
         <TouchableOpacity
@@ -234,7 +164,7 @@ export default function PlayScreen({ route, navigation }) {
                     },
                   ]}
                 />
-                <ObjectIcon label={objectLabel} size={44} color={objectColor} />
+                <ObjectIcon icon={gameConfig?.icon} size={44} color={objectColor} />
               </View>
             ))}
 
@@ -311,7 +241,7 @@ export default function PlayScreen({ route, navigation }) {
                 },
               ]}
             >
-              <ObjectIcon label={objectLabel} size={52} color={objectColor} />
+              <ObjectIcon icon={gameConfig?.icon} size={52} color={objectColor} />
             </View>
             <Text style={styles.overlayTitle}>
               {gameConfig?.title ?? "Dodge!"}
