@@ -17,6 +17,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS, getGameTheme } from '../theme';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL;
+/** Miles — must match backend default sensibly; passed explicitly for clarity */
+const DEFAULT_SEARCH_RADIUS_MILES = 5;
 const ARCGIS_TILE_URL =
   'https://services.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}';
 const FALLBACK_REGION = {
@@ -144,13 +146,39 @@ export default function MapScreen({ navigation }) {
       if (showSpinner) setLoading(true);
       else setRefreshing(true);
 
-      const response = await fetch(`${API_URL}/api/v1/map`);
-      if (!response.ok) {
-        throw new Error(`Server returned ${response.status}`);
+      const allRes = await fetch(`${API_URL}/api/v1/game`);
+      if (!allRes.ok) {
+        throw new Error(`Server returned ${allRes.status}`);
+      }
+      const allPayload = await allRes.json();
+      const normalizedAll = allPayload.map(normalizeGame);
+      const unplaced = normalizedAll.filter((game) => !hasCoordinates(game));
+
+      let placedInView = [];
+      if (userLocation) {
+        const params = new URLSearchParams({
+          lat: String(userLocation.latitude),
+          lng: String(userLocation.longitude),
+          radius: String(DEFAULT_SEARCH_RADIUS_MILES),
+        });
+        const nearbyRes = await fetch(`${API_URL}/api/v1/game/nearby?${params.toString()}`);
+        if (!nearbyRes.ok) {
+          throw new Error(`Server returned ${nearbyRes.status}`);
+        }
+        const nearbyPayload = await nearbyRes.json();
+        placedInView = nearbyPayload.map(normalizeGame);
+      } else {
+        placedInView = normalizedAll.filter(hasCoordinates);
       }
 
-      const payload = await response.json();
-      const normalizedGames = payload.map(normalizeGame);
+      const mergedById = new Map();
+      for (const game of unplaced) {
+        mergedById.set(game.id, game);
+      }
+      for (const game of placedInView) {
+        mergedById.set(game.id, game);
+      }
+      const normalizedGames = [...mergedById.values()];
 
       setGames(normalizedGames);
 
@@ -172,7 +200,7 @@ export default function MapScreen({ navigation }) {
   useEffect(() => {
     if (!isFocused) return;
     fetchGames(games.length === 0);
-  }, [isFocused]);
+  }, [isFocused, userLocation]);
 
   const placedGames = games.filter(hasCoordinates);
   const unplacedGames = games.filter((game) => !hasCoordinates(game));
@@ -328,7 +356,6 @@ export default function MapScreen({ navigation }) {
                     activeOpacity={0.78}
                     onPress={() => {
                       setSelectedGameId(game.id);
-                      setPlacementCoordinate(null);
                     }}
                   >
                     <View style={[styles.rowIcon, { backgroundColor: color + '22', borderColor: color + '55' }]}>
