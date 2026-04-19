@@ -1,16 +1,16 @@
 import {
-  FontAwesome5,
-  Ionicons,
-  MaterialCommunityIcons,
+    FontAwesome5,
+    Ionicons,
+    MaterialCommunityIcons,
 } from "@expo/vector-icons";
 import { useEffect, useReducer, useRef, useState } from "react";
 import {
-  Dimensions,
-  Pressable,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    Dimensions,
+    Pressable,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { COLORS } from "../theme";
@@ -33,11 +33,12 @@ function ObjectIcon({ icon, size, color }) {
   return <Ionicons name={name} size={size} color={color} />;
 }
 
-function initState() {
+function initState(gameType) {
   return {
     player: { x: W / 2 - PLAYER_W / 2, y: PLAYER_Y },
     obstacles: [],
     score: 0,
+    lives: gameType === "catch" ? 3 : null,
     elapsed: 0,
     lastSpawn: 0,
     obsCount: 0,
@@ -47,16 +48,22 @@ function initState() {
 export default function PlayScreen({ route, navigation }) {
   const { gameConfig, objectLabel } = route.params ?? {};
   const insets = useSafeAreaInsets();
+  const suggestedGameType = gameConfig?.gameType ?? "dodge";
   const speed = gameConfig?.parameters?.speed ?? 1;
   const gravity = gameConfig?.parameters?.gravity ?? 1;
   const objectColor = gameConfig?.color ?? COLORS.coral;
 
   const [phase, setPhase] = useState("start");
+  const [selectedGameType, setSelectedGameType] = useState(null);
   const [displayScore, setDisplayScore] = useState(0);
   const forceRender = useReducer((x) => x + 1, 0)[1];
   const dirRef = useRef(null);
   const gameRef = useRef(initState());
   const rafRef = useRef(null);
+
+  // Determine if we should show choice screen
+  const shouldShowChoice = ["catch", "dodge"].includes(suggestedGameType) && !selectedGameType;
+  const gameType = selectedGameType || suggestedGameType;
 
   useEffect(() => {
     if (phase !== "playing") return;
@@ -86,24 +93,48 @@ export default function PlayScreen({ route, navigation }) {
         s.lastSpawn = s.elapsed;
       }
 
-      let hit = false;
+      let collision = false;
+      let collectedIds = new Set();
+      
       s.obstacles = s.obstacles.filter((obs) => {
         obs.y += currentSpeed * delta;
-        if (obs.y > H + OBS_H) {
-          s.score++;
-          return false;
-        }
-        if (
+        
+        // Check if object hit player
+        const hitPlayer =
           obs.x < s.player.x + PLAYER_W &&
           obs.x + OBS_W > s.player.x &&
           obs.y < s.player.y + PLAYER_H &&
-          obs.y + OBS_H > s.player.y
-        )
-          hit = true;
-        return true;
+          obs.y + OBS_H > s.player.y;
+
+        if (hitPlayer) {
+          collision = true;
+          if (gameType === "catch") {
+            s.score++;
+            collectedIds.add(obs.id);
+            return false; // Remove caught object
+          } else if (gameType === "dodge") {
+            return true; // Keep for dodge (will end game)
+          }
+        }
+
+        // Check if object missed (went off bottom)
+        if (obs.y > H + OBS_H) {
+          if (gameType === "catch") {
+            s.lives--;
+            if (s.lives <= 0) {
+              setDisplayScore(s.score);
+              setPhase("over");
+            }
+          } else if (gameType === "dodge") {
+            s.score++;
+          }
+          return false; // Remove missed object
+        }
+
+        return true; // Keep object on screen
       });
 
-      if (hit) {
+      if (collision && gameType === "dodge") {
         setDisplayScore(s.score);
         setPhase("over");
         return;
@@ -114,10 +145,10 @@ export default function PlayScreen({ route, navigation }) {
 
     rafRef.current = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(rafRef.current);
-  }, [phase, speed, gravity, forceRender]);
+  }, [phase, speed, gravity, forceRender, gameType]);
 
   function startGame() {
-    gameRef.current = initState();
+    gameRef.current = initState(gameType);
     setDisplayScore(0);
     setPhase("playing");
   }
@@ -183,7 +214,7 @@ export default function PlayScreen({ route, navigation }) {
 
             <View style={[styles.hudScore, { pointerEvents: "none" }]}>
               <Text style={styles.hudNumber}>{s.score}</Text>
-              <Text style={styles.hudLabel}>dodged</Text>
+              <Text style={styles.hudLabel}>{gameType === "catch" ? "caught" : "dodged"}</Text>
             </View>
 
             <View style={[styles.levelBadge, { pointerEvents: "none" }]}>
@@ -191,6 +222,17 @@ export default function PlayScreen({ route, navigation }) {
                 LVL {level}
               </Text>
             </View>
+
+            {gameType === "catch" && (
+              <View style={[styles.livesBadge, { pointerEvents: "none" }]}>
+                <View style={styles.livesContent}>
+                  <Ionicons name="heart" size={16} color={objectColor} />
+                  <Text style={[styles.livesText, { color: objectColor }]}>
+                    {s.lives}
+                  </Text>
+                </View>
+              </View>
+            )}
 
             <View
               style={[
@@ -230,7 +272,52 @@ export default function PlayScreen({ route, navigation }) {
           </>
         )}
 
-        {phase === "start" && (
+        {shouldShowChoice && (
+          <View style={styles.overlay}>
+            <View
+              style={[
+                styles.iconRing,
+                {
+                  borderColor: objectColor + "44",
+                  backgroundColor: objectColor + "12",
+                },
+              ]}
+            >
+              <ObjectIcon icon={gameConfig?.icon} size={52} color={objectColor} />
+            </View>
+            <Text style={styles.overlayTitle}>Choose Your Game</Text>
+            <Text style={[styles.overlayObject, { color: objectColor }]}>
+              {objectLabel}
+            </Text>
+            <Text style={styles.overlayHint}>
+              This can be played as catch or dodge
+            </Text>
+
+            <View style={styles.choiceButtonGroup}>
+              <TouchableOpacity
+                style={[styles.choiceBtn, { borderColor: objectColor }]}
+                onPress={() => setSelectedGameType("catch")}
+              >
+                <Text style={[styles.choiceBtnText, { color: objectColor }]}>
+                  Catch
+                </Text>
+                <Text style={styles.choiceBtnSubtext}>Collect objects</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.choiceBtn, { borderColor: objectColor }]}
+                onPress={() => setSelectedGameType("dodge")}
+              >
+                <Text style={[styles.choiceBtnText, { color: objectColor }]}>
+                  Dodge
+                </Text>
+                <Text style={styles.choiceBtnSubtext}>Avoid objects</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+
+        {phase === "start" && !shouldShowChoice && (
           <View style={styles.overlay}>
             <View
               style={[
@@ -279,7 +366,7 @@ export default function PlayScreen({ route, navigation }) {
               <Text style={[styles.bigScore, { color: objectColor }]}>
                 {displayScore}
               </Text>
-              <Text style={styles.bigScoreLabel}>objects dodged</Text>
+              <Text style={styles.bigScoreLabel}>objects {gameType === "catch" ? "caught" : "dodged"}</Text>
             </View>
             <TouchableOpacity
               style={[styles.actionBtn, { backgroundColor: objectColor }]}
@@ -384,6 +471,22 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
   },
   levelText: { fontSize: 11, fontWeight: "800", letterSpacing: 1.5 },
+  livesBadge: {
+    position: "absolute",
+    top: 20,
+    left: 16,
+    backgroundColor: COLORS.surfaceLighter,
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    marginTop: 40,
+  },
+  livesContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  livesText: { fontSize: 14, fontWeight: "800" },
   touchRow: { flexDirection: "row" },
   hints: {
     position: "absolute",
@@ -429,6 +532,31 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   overlayHint: { color: COLORS.textMuted, fontSize: 13, marginTop: 4 },
+  choiceButtonGroup: {
+    flexDirection: "row",
+    gap: 12,
+    marginTop: 20,
+    width: "100%",
+    justifyContent: "center",
+  },
+  choiceBtn: {
+    borderWidth: 2,
+    borderRadius: 12,
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    alignItems: "center",
+    flex: 1,
+  },
+  choiceBtnText: {
+    fontSize: 16,
+    fontWeight: "700",
+    marginBottom: 4,
+  },
+  choiceBtnSubtext: {
+    color: COLORS.textMuted,
+    fontSize: 12,
+    fontWeight: "500",
+  },
   rulesBox: { gap: 4, marginTop: 4, alignItems: "center" },
   rule: { color: COLORS.textMuted, fontSize: 13, textAlign: "center" },
   actionBtn: {

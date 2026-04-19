@@ -25,12 +25,12 @@ Your JSON must match this exact structure:
 }
 
 MAPPING LOGIC:
-- "catch" or "dodge": Small, throwable objects (e.g., apple, ball, keys).
-- "balance": Tall or oddly shaped objects (e.g., bottle, broom, pencil).
-- "swipe": Objects you slice or move quickly (e.g., paper, card, fruit).
-- "runner" or "timing": Vehicles, animals, or characters.
-- "dodge" is preferred for objects that are typically avoided, while "catch" is for objects that are typically caught (e.g., a ball vs. a flying insect).
-- "timing" is for objects where reaction time is key, while "runner" is for objects associated with movement. (e.g., a car might be "runner", while a falling leaf might be "timing").
+- "catch": Balls, spheres, fruits, small objects you can catch (e.g., basketball, apple, tennis ball, keys). PRIORITY: Use catch for ANY ball-like object.
+- "dodge": Objects that fall/fly toward you that you avoid (e.g., rock, brick, falling object, insect).
+- "balance": Tall or oddly shaped objects (e.g., bottle, broom, pencil, chair).
+- "swipe": Objects you slice or move quickly (e.g., paper, card, fruit, knife).
+- "runner": Only for vehicles or living creatures (e.g., car, dog, bird). NOT for sports equipment.
+- "timing": Objects where reaction speed matters (e.g., alarm clock, stopwatch, falling leaf).
 
 ICON SELECTION:
 - Choose the most relevant icon from one of the three libraries (mci, fa5, ion)
