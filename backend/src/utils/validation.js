@@ -4,6 +4,7 @@ import { z } from 'zod';
 export const GameConfigSchema = z.object({
   gameType: z.enum(['dodge', 'catch', 'balance', 'swipe', 'timing', 'runner']),
   title: z.string().max(30),
+  rules: z.array(z.string()).min(1).max(3),
   parameters: z.object({
     speed: z.number().min(0.1).max(3.0),
     gravity: z.number().min(0.1).max(3.0)
@@ -14,5 +15,6 @@ export const GameConfigSchema = z.object({
 export const FALLBACK_CONFIG = {
   gameType: "catch",
   title: "Catch It!",
+  rules: ["Catch the falling object.", "Don't let it hit the ground."],
   parameters: { speed: 1.0, gravity: 1.0 }
 };
