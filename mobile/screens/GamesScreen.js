@@ -58,7 +58,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.bg },
   scroll: { paddingHorizontal: PADDING },
 
-  heading: { color: COLORS.highlight, fontSize: 22, fontWeight: '700', letterSpacing: 0.3 },
+  heading: { color: COLORS.text, fontSize: 22, fontWeight: '700', letterSpacing: 0.3 },
   sub: { color: COLORS.textMuted, fontSize: 13, marginTop: 4, marginBottom: 24 },
 
   grid: {

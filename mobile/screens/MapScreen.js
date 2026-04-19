@@ -125,7 +125,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: 16,
   },
-  panelTitle: { color: COLORS.highlight, fontSize: 16, fontWeight: '700' },
+  panelTitle: { color: COLORS.text, fontSize: 16, fontWeight: '700' },
   liveChip: {
     flexDirection: 'row',
     alignItems: 'center',

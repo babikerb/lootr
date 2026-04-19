@@ -88,18 +88,6 @@ Users:
 
 All colors live in `mobile/theme.js` — always import from there, never hardcode hex values.
 
-| Token | Hex | Use |
-|---|---|---|
-| `bg` | `#0d1f1e` | Screen backgrounds |
-| `surface` | `#142e2c` | Cards, tab bar, inputs |
-| `teal` | `#3A8F6D` | Primary accent, active states, capture button |
-| `tealDark` | `#2F7C7F` | Secondary teal |
-| `blue` | `#346A7F` | Tertiary accent |
-| `indigo` | `#50588F` | Quaternary accent |
-| `purple` | `#4A4182` | Quinary accent |
-| `text` | `#e0f0ee` | Primary text |
-| `textMuted` | `rgba(224,240,238,0.45)` | Secondary text, inactive icons |
-
 ---
 
 # 🧠 AI Integration Rules
