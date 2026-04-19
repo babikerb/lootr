@@ -1,6 +1,7 @@
 import express from 'express';
 import dotenv from 'dotenv';
 import gameRoutes from './routes/game.routes.js';
+import './utils/db.js';
 
 // Load environment variables .env file
 dotenv.config();
@@ -20,7 +21,7 @@ app.get('/health', (req, res) => {
 // Mount feature routes 
 app.use('/api/v1/game', gameRoutes);
 
-// 6. Start the server
+// Start the server
 app.listen(PORT, () => {
   console.log(`=================================`);
   console.log(`Lootr Backend is ALIVE!`);
