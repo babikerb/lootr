@@ -4,7 +4,7 @@ import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS } from '../theme';
 
-import GamesScreen from '../screens/GamesScreen';
+import GameListScreen from '../screens/GameListScreen';
 import HomeScreen from '../screens/HomeScreen';
 import MapScreen from '../screens/MapScreen';
 
@@ -66,7 +66,7 @@ export default function BottomTabNavigator() {
     >
       <Tab.Screen name="Map"   component={MapScreen} />
       <Tab.Screen name="Home"  component={HomeScreen} />
-      <Tab.Screen name="Games" component={GamesScreen} />
+      <Tab.Screen name="Games" component={GameListScreen} />
     </Tab.Navigator>
   );
 }

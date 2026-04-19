@@ -194,9 +194,16 @@ export default function HomeScreen({ navigation }) {
               </View>
             </View>
 
-            <TouchableOpacity style={styles.playBtn} disabled activeOpacity={0.7}>
-              <Ionicons name="game-controller-outline" size={18} color={COLORS.textMuted} />
-              <Text style={styles.playBtnText}>Game Coming Soon</Text>
+            <TouchableOpacity
+              style={styles.playBtn}
+              activeOpacity={0.85}
+              onPress={() => {
+                setScanResult(null);
+                navigation.navigate('Game', { gameConfig: scanResult.gameConfig, objectLabel: scanResult.objectLabel });
+              }}
+            >
+              <Ionicons name="game-controller-outline" size={18} color={COLORS.bg} />
+              <Text style={styles.playBtnText}>Play Game</Text>
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.dismissBtn} onPress={() => setScanResult(null)}>
@@ -386,17 +393,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: COLORS.surfaceLighter,
+    backgroundColor: COLORS.seafoam,
     borderRadius: 14,
     paddingVertical: 15,
     marginBottom: 12,
-    borderWidth: 1,
-    borderColor: COLORS.cyan + '22',
   },
   playBtnText: {
-    color: COLORS.textMuted,
+    color: COLORS.bg,
     fontSize: 15,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   dismissBtn: {
     alignItems: 'center',
