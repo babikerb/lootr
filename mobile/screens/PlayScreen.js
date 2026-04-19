@@ -11,7 +11,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { COLORS } from "../theme";
+import { COLORS, getGameTheme } from "../theme";
 
 const { width: W, height: H } = Dimensions.get("window");
 
@@ -91,7 +91,7 @@ function HudScore({ value, label }) {
 const PW = 72, PH = 36, OW = 56, OH = 56, PY = H - 180, PS = 7;
 
 function DodgeCatch({ gameType, config, onEnd }) {
-  const color = config?.color ?? COLORS.coral;
+  const color = getGameTheme(gameType);
   const baseSpeed = config?.parameters?.speed ?? 1;
   const gravity = config?.parameters?.gravity ?? 1;
   const iconName = config?.icon?.name;
@@ -173,8 +173,8 @@ function DodgeCatch({ gameType, config, onEnd }) {
 // ─── BALANCE ─────────────────────────────────────────────────
 const PLAT_W = 140, PLAT_H = 12, BALL_R = 20, PLAT_Y = H * 0.62;
 
-function Balance({ config, onEnd }) {
-  const color = config?.color ?? COLORS.coral;
+function Balance({ gameType, config, onEnd }) {
+  const color = getGameTheme(gameType);
   const iconName = config?.icon?.name;
   const [, tick] = useState(0);
   // Simple state: platform x (touch-driven), ball x with physics
@@ -245,8 +245,8 @@ const GROUND_Y = H * 0.70;
 const PLAYER_X = 90, PLAYER_SIZE = 44;
 const OBS_W = 36, OBS_H = 52;
 
-function Runner({ config, onEnd }) {
-  const color = config?.color ?? COLORS.coral;
+function Runner({ gameType, config, onEnd }) {
+  const color = getGameTheme(gameType);
   const baseSpeed = config?.parameters?.speed ?? 1;
   const iconName = config?.icon?.name;
   const [, tick] = useState(0);
@@ -310,9 +310,9 @@ function Runner({ config, onEnd }) {
         <View key={i} style={[rn.seaweed, { left: W * x, top: GROUND_Y + PLAYER_SIZE + 2, height: 16 + (i % 3) * 8 }]} pointerEvents="none" />
       ))}
 
-      {/* Player — diver */}
+      {/* Player */}
       <View style={[rn.player, { left: PLAYER_X, top: s.py }]} pointerEvents="none">
-        <MaterialCommunityIcons name="diving-scuba-mask" size={36} color={COLORS.seafoam} />
+        <MaterialCommunityIcons name="run-fast" size={36} color={COLORS.seafoam} />
       </View>
 
       {/* Obstacles */}
@@ -354,8 +354,8 @@ function SwipeCard({ id, x, y, color, iconName, onSwipedRef }) {
   );
 }
 
-function Swipe({ config, onEnd }) {
-  const color = config?.color ?? COLORS.coral;
+function Swipe({ gameType, config, onEnd }) {
+  const color = getGameTheme(gameType);
   const baseSpeed = config?.parameters?.speed ?? 1;
   const iconName = config?.icon?.name;
   const [, tick] = useState(0);
@@ -423,8 +423,8 @@ function Swipe({ config, onEnd }) {
 // ─── TIMING ──────────────────────────────────────────────────
 const TRACK_W = W - 80, ZONE_W = 90, ZONE_X = TRACK_W / 2 - ZONE_W / 2, NR = 22;
 
-function Timing({ config, onEnd }) {
-  const color = config?.color ?? COLORS.coral;
+function Timing({ gameType, config, onEnd }) {
+  const color = getGameTheme(gameType);
   const iconName = config?.icon?.name;
   const [, tick] = useState(0);
   const [combo, setCombo] = useState(0);
@@ -502,10 +502,10 @@ function Timing({ config, onEnd }) {
 function GameCanvas({ gameType, config, onEnd }) {
   if (gameType === "dodge" || gameType === "catch")
     return <DodgeCatch key={gameType} gameType={gameType} config={config} onEnd={onEnd} />;
-  if (gameType === "balance") return <Balance config={config} onEnd={onEnd} />;
-  if (gameType === "runner") return <Runner config={config} onEnd={onEnd} />;
-  if (gameType === "swipe") return <Swipe config={config} onEnd={onEnd} />;
-  if (gameType === "timing") return <Timing config={config} onEnd={onEnd} />;
+  if (gameType === "balance") return <Balance gameType={gameType} config={config} onEnd={onEnd} />;
+  if (gameType === "runner") return <Runner gameType={gameType} config={config} onEnd={onEnd} />;
+  if (gameType === "swipe") return <Swipe gameType={gameType} config={config} onEnd={onEnd} />;
+  if (gameType === "timing") return <Timing gameType={gameType} config={config} onEnd={onEnd} />;
   return <DodgeCatch gameType="dodge" config={config} onEnd={onEnd} />;
 }
 
@@ -519,14 +519,14 @@ const GAME_HINTS = {
   timing: "Tap when the object lands in the green zone",
 };
 const GAME_LABELS = { dodge:"Dodge", catch:"Catch", balance:"Balance", runner:"Runner", swipe:"Swipe", timing:"Timing" };
-const SCORE_LABELS = { dodge:"dodged", catch:"caught", balance:"seconds survived", runner:"obstacles cleared", swipe:"objects swiped", timing:"perfect hits" };
+const SCORE_LABELS = { dodge:"dodged", catch:"caught", balance:"seconds survived", runner:"obstacles cleared", swipe:"swiped", timing:"perfect hits" };
 
 // ─── SCREEN ──────────────────────────────────────────────────
 export default function PlayScreen({ route, navigation }) {
   const { gameConfig, objectLabel } = route.params ?? {};
   const insets = useSafeAreaInsets();
-  const color = gameConfig?.color ?? COLORS.coral;
   const primaryType = gameConfig?.gameType ?? "dodge";
+  const color = getGameTheme(primaryType);
   const alternates = gameConfig?.alternates ?? [];
   const threshold = 0.70;
 
@@ -575,16 +575,19 @@ export default function PlayScreen({ route, navigation }) {
             <Text style={sh.overlayTitle}>{objectLabel}</Text>
             <Text style={sh.overlayHint}>Fits multiple game types — you pick</Text>
             <View style={sh.pickGrid}>
-              {allOptions.map(opt => (
-                <TouchableOpacity
-                  key={opt.gameType}
-                  style={[sh.pickBtn, { borderColor: color }]}
-                  onPress={() => pickType(opt.gameType)}
-                >
-                  <Text style={[sh.pickBtnTitle, { color }]}>{GAME_LABELS[opt.gameType]}</Text>
-                  <Text style={sh.pickBtnSub}>{Math.round(opt.confidence * 100)}% match</Text>
-                </TouchableOpacity>
-              ))}
+              {allOptions.map(opt => {
+                const optColor = getGameTheme(opt.gameType);
+                return (
+                  <TouchableOpacity
+                    key={opt.gameType}
+                    style={[sh.pickBtn, { borderColor: optColor }]}
+                    onPress={() => pickType(opt.gameType)}
+                  >
+                    <Text style={[sh.pickBtnTitle, { color: optColor }]}>{GAME_LABELS[opt.gameType]}</Text>
+                    <Text style={sh.pickBtnSub}>{Math.round(opt.confidence * 100)}% match</Text>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
           </View>
         )}
@@ -615,7 +618,7 @@ export default function PlayScreen({ route, navigation }) {
             <Text style={sh.overTitle}>Game Over</Text>
             <View style={[sh.scoreCard, { borderColor: color + "44" }]}>
               <Text style={[sh.bigScore, { color }]}>{finalScore}</Text>
-              <Text style={sh.bigScoreLbl}>{SCORE_LABELS[gameType] ?? "score"}</Text>
+              <Text style={sh.bigScoreLbl}>{gameType === "timing" ? "perfect hits" : `${objectLabel} ${SCORE_LABELS[gameType] ?? "score"}`}</Text>
             </View>
             <TouchableOpacity style={[sh.actionBtn, { backgroundColor: color }]} onPress={replay}>
               <Text style={sh.actionBtnTxt}>Play Again</Text>
@@ -659,6 +662,7 @@ const sh = StyleSheet.create({
     flexDirection: "row", alignItems: "center",
     paddingHorizontal: 16, paddingVertical: 12, gap: 8,
     borderBottomWidth: 1, borderBottomColor: COLORS.surfaceLighter,
+    zIndex: 10,
   },
   backBtn: { padding: 4 },
   title: { flex: 1, color: COLORS.text, fontSize: 17, fontWeight: "700" },
@@ -682,19 +686,21 @@ const sh = StyleSheet.create({
   },
   pickBtnTitle: { fontSize: 17, fontWeight: "700", marginBottom: 4 },
   pickBtnSub: { color: COLORS.textMuted, fontSize: 12 },
-  actionBtn: { paddingVertical: 15, paddingHorizontal: 52, borderRadius: 14, marginTop: 16 },
-  actionBtnTxt: { color: COLORS.bg, fontSize: 16, fontWeight: "700" },
-  switchBtn: { paddingVertical: 10 },
-  switchBtnTxt: { color: COLORS.textMuted, fontSize: 13, fontWeight: "600" },
-  overTitle: { color: COLORS.text, fontSize: 22, fontWeight: "700" },
+  actionBtn: { paddingVertical: 20, paddingHorizontal: 64, borderRadius: 18, marginTop: 28, shadowColor: "#000", shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.35, shadowRadius: 12, elevation: 8 },
+  actionBtnTxt: { color: COLORS.bg, fontSize: 18, fontWeight: "900", letterSpacing: 0.8 },
+  switchBtn: { paddingVertical: 12, marginTop: 12, paddingHorizontal: 20, backgroundColor: COLORS.surface, borderRadius: 8 },
+  switchBtnTxt: { color: COLORS.text, fontSize: 14, fontWeight: "700" },
+  overTitle: { color: COLORS.text, fontSize: 32, fontWeight: "800", marginBottom: 24 },
   scoreCard: {
-    borderWidth: 1, borderRadius: 20, paddingVertical: 24, paddingHorizontal: 48,
-    alignItems: "center", marginVertical: 8, backgroundColor: COLORS.surface,
+    borderWidth: 2, borderRadius: 24, paddingVertical: 40, paddingHorizontal: 52,
+    alignItems: "center", marginVertical: 24, backgroundColor: COLORS.surface,
+    shadowColor: "#000", shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.3, shadowRadius: 12,
+    elevation: 8,
   },
-  bigScore: { fontSize: 80, fontWeight: "800", lineHeight: 88 },
-  bigScoreLbl: { color: COLORS.textMuted, fontSize: 13, fontWeight: "600", marginTop: 2 },
-  backLink: { paddingVertical: 12 },
-  backLinkTxt: { color: COLORS.textMuted, fontSize: 14, fontWeight: "600" },
+  bigScore: { fontSize: 96, fontWeight: "900", lineHeight: 104, letterSpacing: -2 },
+  bigScoreLbl: { color: COLORS.textMuted, fontSize: 16, fontWeight: "700", marginTop: 12, letterSpacing: 0.5 },
+  backLink: { paddingVertical: 14, paddingHorizontal: 28, backgroundColor: COLORS.surface, borderRadius: 12, marginTop: 20, borderWidth: 1, borderColor: COLORS.teal + "33" },
+  backLinkTxt: { color: COLORS.text, fontSize: 15, fontWeight: "700" },
 });
 
 const sea = StyleSheet.create({
