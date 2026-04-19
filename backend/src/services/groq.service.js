@@ -1,6 +1,38 @@
 import Groq from 'groq-sdk';
-import { generateSystemPrompt } from '../utils/prompts.js'; 
+import { generateSystemPrompt } from '../utils/prompts.js';
 import { GameConfigSchema, FALLBACK_CONFIG } from '../utils/validation.js';
+
+export async function identifyObject(base64Image) {
+  try {
+    const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+    const response = await groq.chat.completions.create({
+      model: 'meta-llama/llama-4-scout-17b-16e-instruct',
+      messages: [
+        {
+          role: 'user',
+          content: [
+            {
+              type: 'image_url',
+              image_url: { url: `data:image/jpeg;base64,${base64Image}` },
+            },
+            {
+              type: 'text',
+              text: 'Identify the single most prominent physical object in this image. Reply with ONLY the object name, 1-3 words, no punctuation, no explanation. Examples: "water bottle", "basketball", "coffee mug".',
+            },
+          ],
+        },
+      ],
+      temperature: 0.1,
+      max_tokens: 20,
+    });
+    const label = response.choices[0]?.message?.content?.trim() || 'unknown object';
+    return label;
+  } catch (error) {
+    console.error('[SCAN] Vision model error:', error.message);
+    console.error('[SCAN] Full error:', JSON.stringify(error, null, 2));
+    return 'unknown object';
+  }
+}
 
 export async function generateGameConfig(objectLabel) {
   try {

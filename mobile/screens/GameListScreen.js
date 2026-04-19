@@ -17,7 +17,7 @@ const GAMES = [
   { id: '6', title: 'Shoe Runner',   type: 'runner',  icon: 'walk-outline',            color: COLORS.highlight },
 ];
 
-export default function GamesScreen() {
+export default function GameListScreen() {
   const insets = useSafeAreaInsets();
 
   return (

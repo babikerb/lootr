@@ -13,6 +13,11 @@ Your JSON must match this exact structure:
   "gameType": "string", // MUST be exactly one of: "dodge", "catch", "balance", "swipe", "timing", "runner"
   "title": "string", // A short, fun 2-4 word title incorporating the object (e.g., "Dodge the Mug!")
   "rules": ["string"], // An array of 1-3 short, punchy sentences explaining how to play
+  "color": "string", // A hex color code representing the typical/dominant color of the real-world object (e.g., "#FF6B35" for an orange, "#4A90D9" for a blue bottle)
+  "icon": {
+    "library": "string", // MUST be exactly one of: "mci" (MaterialCommunityIcons), "fa5" (FontAwesome5), "ion" (Ionicons)
+    "name": "string" // The icon name for that library (e.g., "bottle-wine", "football-ball", "headset")
+  },
   "parameters": {
     "speed": "number", // Float between 0.5 and 2.0 based on object weight
     "gravity": "number" // Float between 0.5 and 1.5 based on object aerodynamics
@@ -26,4 +31,11 @@ MAPPING LOGIC:
 - "runner" or "timing": Vehicles, animals, or characters.
 - "dodge" is preferred for objects that are typically avoided, while "catch" is for objects that are typically caught (e.g., a ball vs. a flying insect).
 - "timing" is for objects where reaction time is key, while "runner" is for objects associated with movement. (e.g., a car might be "runner", while a falling leaf might be "timing").
+
+ICON SELECTION:
+- Choose the most relevant icon from one of the three libraries (mci, fa5, ion)
+- For a "bottle", prefer "mci" with "bottle-wine" or "bottle-water"
+- For a "soccer ball", prefer "fa5" with "futbol"
+- For generic fallback, use "ion" with "cube-outline"
+- The icon should visually represent the object to make the game feel cohesive.
 `;
