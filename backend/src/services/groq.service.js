@@ -4,6 +4,9 @@ import { GameConfigSchema, FALLBACK_CONFIG } from '../utils/validation.js';
 
 export async function generateGameConfig(objectLabel) {
   try {
+
+    console.log("[DEBUG] API Key Check:", process.env.GROQ_API_KEY ? "Key Found!" : "KEY MISSING");
+
     const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
     
     const chatCompletion = await groq.chat.completions.create({
@@ -11,7 +14,7 @@ export async function generateGameConfig(objectLabel) {
         { role: 'system', content: generateSystemPrompt() }, 
         { role: 'user', content: `<input>${objectLabel}</input>` }
       ],
-      model: 'llama3-8b-8192',
+      model: 'llama-3.1-8b-instant',
       temperature: 0.2,
       response_format: { type: "json_object" }
     });
@@ -23,6 +26,7 @@ export async function generateGameConfig(objectLabel) {
     return GameConfigSchema.parse(parsedJson);
 
   } catch (error) {
+    console.error("CRITICAL LLM/VALIDATION ERROR");
     console.error("LLM Error:", error.message);
     // Return the imported fallback
     return FALLBACK_CONFIG;
