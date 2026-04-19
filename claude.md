@@ -104,3 +104,12 @@ Example:
   "title": "Bottle Dodge",
   "speed": 1.2
 }
+
+# DO NOT IMPLEMENT
+- Authentication systems
+- Complex user profiles
+- Real-time multiplayer
+- Advanced physics engines
+- Overly dynamic AI-generated logic
+
+
