@@ -1,32 +1,9 @@
-/**
- * Icon validation for the Lootr mobile app
- * Verifies that icon names are valid before rendering
- * Provides fallbacks for invalid icons
- */
+import { FontAwesome5, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 
-// Verified icon names from each library
 const VALID_ICONS = {
-  mci: new Set([
-    'bottle-wine', 'bottle-water', 'beer', 'can', 'jar', 'container',
-    'coffee', 'cup', 'plate', 'tennis-ball', 'volleyball', 'golf', 'ping-pong', 'beach',
-    'drill', 'pliers', 'wrench',
-    'flower', 'leaf', 'tree',
-    'pen', 'pencil', 'brick', 'rock', 'doughnut', 'cookie', 'egg', 'carrot', 'sock', 'glove', 
-    'puzzle', 'drum', 'piano', 'trumpet', 'atom', 'bee', 'butterfly', 'skateboard', 'snowboard', 
-    'cricket', 'tennis'
-  ]),
-  fa5: new Set([
-    'basketball', 'football-ball', 'futbol', 'baseball-ball', 'bowling-ball',
-    'apple-alt', 'orange', 'lemon', 'watermelon', 'pizza-slice', 'ice-cream', 'hamburger', 'bread-slice',
-    'hammer', 'wrench', 'screwdriver', 'saw', 'tools',
-    'car', 'bicycle', 'motorcycle', 'truck', 'bus', 'ship',
-    'dog', 'cat', 'dove', 'fish', 'rabbit', 'squirrel', 'bear',
-    'watch', 'ring', 'key', 'wallet', 'book', 'hat', 'shoe-prints', 'star', 'globe', 'rocket', 
-    'guitar', 'music', 'ball'
-  ]),
-  ion: new Set([
-    'cube-outline', 'document-outline', 'camera-outline', 'phone-portrait-outline', 'airplane-outline'
-  ])
+  mci: new Set(Object.keys(MaterialCommunityIcons.glyphMap ?? {})),
+  fa5: new Set(Object.keys(FontAwesome5.glyphMap ?? {})),
+  ion: new Set(Object.keys(Ionicons.glyphMap ?? {})),
 };
 
 /**
@@ -58,7 +35,5 @@ export function validateIcon(icon) {
     return { library, name };
   }
 
-  // If not valid, return a safe fallback
-  console.warn(`[ICON] Invalid icon detected: ${library}:${name}, using fallback`);
   return { library: 'ion', name: 'cube-outline' };
 }

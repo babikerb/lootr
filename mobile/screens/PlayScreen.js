@@ -12,30 +12,14 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { COLORS, getGameTheme } from "../theme";
+import { validateIcon } from "../utils/iconValidator";
 import { markGameAsPlayed } from "../utils/scannedGamesStorage";
 import { toTitleCase } from "../utils/text";
 
 const { width: W, height: H } = Dimensions.get("window");
 
-// Safe MCI icons — anything not in this set falls back to cube-outline
-const SAFE_MCI = new Set([
-  "basketball","football","soccer","baseball","volleyball","tennis-ball","rugby","badminton",
-  "bottle-wine","bottle-water","beer","cup","coffee","tea","glass-wine",
-  "food-apple","pizza","hamburger","ice-cream","egg","carrot","cookie","cupcake","donut","bread-slice",
-  "hammer","wrench","screwdriver","drill","saw","knife-kitchen",
-  "car","bicycle","motorcycle","truck","bus","airplane","rocket","sail-boat",
-  "dog","cat","fish","rabbit","bee","butterfly","owl","elephant","horse","duck","bird","snake","turtle",
-  "flower","leaf","tree","mushroom","cactus","snowflake","feather",
-  "guitar-acoustic","piano","drum","trumpet","music-note",
-  "book-open-variant","key","wallet","watch","ring","pencil","pen","brick","dumbbell",
-  "shoe-sneaker","hat-cowboy","umbrella","lamp","cellphone","laptop","headphones",
-  "gamepad-variant","dice-6","candle","balloon","camera","cube-outline",
-  "heart","run-fast","chevron-left","phone-rotate-landscape",
-  "arrow-left-thin","arrow-right-thin",
-]);
-
 function safeIcon(name) {
-  return SAFE_MCI.has(name) ? name : "cube-outline";
+  return validateIcon({ library: "mci", name }).name;
 }
 
 function ObjIcon({ name, size, color }) {

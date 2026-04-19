@@ -4,6 +4,7 @@ import { useCallback, useState } from 'react';
 import { ActivityIndicator, Dimensions, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS } from '../theme';
+import { validateIcon } from '../utils/iconValidator';
 import { getScannedGames } from '../utils/scannedGamesStorage';
 import { toTitleCase } from '../utils/text';
 
@@ -40,8 +41,9 @@ function getGamePresentation(game) {
 }
 
 function GameIcon({ game, color }) {
-  const iconLibrary = game.gameConfig?.icon?.library;
-  const iconName = game.gameConfig?.icon?.name;
+  const validatedIcon = validateIcon(game.gameConfig?.icon);
+  const iconLibrary = validatedIcon.library;
+  const iconName = validatedIcon.name;
 
   if (iconLibrary === 'mci' && iconName) {
     return <MaterialCommunityIcons name={iconName} size={36} color={color} />;

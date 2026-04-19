@@ -16,6 +16,7 @@ import {
 import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS } from '../theme';
+import { validateIcon } from '../utils/iconValidator';
 import { getMostRecentPlayedGame, saveScannedGame } from '../utils/scannedGamesStorage';
 import { toTitleCase } from '../utils/text';
 
@@ -44,11 +45,12 @@ function getRecentGameColor(gameType) {
 }
 
 function getRecentGameIconName(game) {
-  return game?.gameConfig?.icon?.name || 'game-controller-outline';
+  return validateIcon(game?.gameConfig?.icon).name;
 }
 
 function RecentGameIcon({ game, color }) {
-  const iconLibrary = game?.gameConfig?.icon?.library;
+  const validatedIcon = validateIcon(game?.gameConfig?.icon);
+  const iconLibrary = validatedIcon.library;
   const iconName = getRecentGameIconName(game);
 
   if (iconLibrary === 'mci' && iconName) {
@@ -192,10 +194,7 @@ export default function HomeScreen({ navigation }) {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.header}>
-          <Text style={styles.brand}>lootr</Text>
-          <TouchableOpacity style={styles.iconBtn}>
-            <Ionicons name="person-circle-outline" size={30} color={COLORS.seafoam} />
-          </TouchableOpacity>
+          <Text style={styles.brand}>Lootr</Text>
         </View>
 
         <View style={styles.hero}>
@@ -320,13 +319,11 @@ const styles = StyleSheet.create({
   scroll: { paddingHorizontal: 20 },
 
   header: {
-    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
     marginBottom: 24,
   },
   brand: { color: COLORS.text, fontSize: 22, fontWeight: '700', letterSpacing: 3 },
-  iconBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
 
   hero: {
     borderRadius: 20,

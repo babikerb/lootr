@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const SCANNED_GAMES_STORAGE_KEY = 'lootr.scannedGames';
+let localGameCounter = 0;
 
 function normalizeText(value) {
   return String(value ?? '').trim().toLowerCase();
@@ -14,14 +15,20 @@ function getGameSignature(scanResult) {
   ].join('::');
 }
 
+function createLocalGameId(signature) {
+  localGameCounter += 1;
+  return `local-${Date.now()}-${localGameCounter}-${signature}`;
+}
+
 function normalizeScannedGame(scanResult) {
   if (!scanResult?.gameConfig) return null;
 
   const savedGameId = scanResult.savedGame?.id;
   const signature = getGameSignature(scanResult);
+  const existingId = scanResult.id;
 
   return {
-    id: savedGameId ? String(savedGameId) : `local-${Date.now()}`,
+    id: savedGameId ? String(savedGameId) : existingId ? String(existingId) : createLocalGameId(signature),
     savedGameId: savedGameId ?? null,
     signature,
     objectLabel: scanResult.objectLabel ?? 'Unknown Object',
@@ -36,12 +43,18 @@ function normalizeScannedGame(scanResult) {
 
 function dedupeScannedGames(games) {
   const seenSignatures = new Set();
+  const seenIds = new Set();
 
   return games
     .map(normalizeScannedGame)
     .filter(game => {
       if (!game || seenSignatures.has(game.signature)) return false;
       seenSignatures.add(game.signature);
+
+      const normalizedId = game.id ? String(game.id) : createLocalGameId(game.signature);
+      game.id = seenIds.has(normalizedId) ? createLocalGameId(game.signature) : normalizedId;
+      seenIds.add(game.id);
+
       return true;
     });
 }
@@ -54,7 +67,12 @@ export async function getScannedGames() {
     const parsed = JSON.parse(rawValue);
     if (!Array.isArray(parsed)) return [];
 
-    return dedupeScannedGames(parsed);
+    const normalizedGames = dedupeScannedGames(parsed);
+    if (JSON.stringify(parsed) !== JSON.stringify(normalizedGames)) {
+      await AsyncStorage.setItem(SCANNED_GAMES_STORAGE_KEY, JSON.stringify(normalizedGames));
+    }
+
+    return normalizedGames;
   } catch {
     return [];
   }
