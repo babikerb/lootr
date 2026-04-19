@@ -20,3 +20,29 @@ export const COLORS = {
   textMuted: '#7f97a6',
   textDim: 'rgba(230,241,247,0.2)',
 };
+
+// Cycling coral accents for game types
+const CORAL_ACCENTS = [
+  '#d4745c', // Warm salmon coral
+  '#c96b4f', // Deep burnt coral
+  '#e8956b', // Peachy coral
+  '#b85d3e', // Rust coral
+  '#d97c5c', // Vibrant coral
+  '#c9825c', // Muted terracotta
+];
+
+// Game type to coral accent mapping
+const GAME_TYPES = ['dodge', 'catch', 'balance', 'runner', 'swipe', 'timing'];
+
+/**
+ * Get the coral accent color for a specific game type.
+ * Each game type gets a unique coral from the palette to create visual variety
+ * while maintaining the deep sea theme.
+ * @param {string} gameType - One of: dodge, catch, balance, runner, swipe, timing
+ * @returns {string} Hex color code for the coral accent
+ */
+export function getGameTheme(gameType) {
+  const index = GAME_TYPES.indexOf(gameType);
+  if (index === -1) return CORAL_ACCENTS[0]; // Fallback to first coral
+  return CORAL_ACCENTS[index];
+}
