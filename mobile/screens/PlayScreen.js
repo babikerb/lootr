@@ -1,4 +1,5 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { StatusBar } from "expo-status-bar";
 import { Accelerometer } from "expo-sensors";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -569,6 +570,7 @@ export default function PlayScreen({ route, navigation }) {
 
   return (
     <View style={[sh.container, { paddingTop: insets.top }]}>
+      <StatusBar style="light" backgroundColor={COLORS.bg} />
       <View style={sh.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={sh.backBtn}>
           <MaterialCommunityIcons name="chevron-left" size={24} color={COLORS.text} />

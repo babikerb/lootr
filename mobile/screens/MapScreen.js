@@ -1,32 +1,47 @@
-import { Ionicons } from '@expo/vector-icons';
-import { useEffect, useRef, useState } from 'react';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  Platform,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native';
-import MapView, { Marker, UrlTile } from 'react-native-maps';
+import MapView, { Marker } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { useIsFocused } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { StatusBar } from 'expo-status-bar';
 import { COLORS, getGameTheme } from '../theme';
+import { validateIcon } from '../utils/iconValidator';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL;
-/** Miles — must match backend default sensibly; passed explicitly for clarity */
 const DEFAULT_SEARCH_RADIUS_MILES = 5;
-const ARCGIS_TILE_URL =
-  'https://services.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}';
+const GAME_ROW_HEIGHT = 74;
 const FALLBACK_REGION = {
   latitude: 33.7455,
   longitude: -117.8677,
   latitudeDelta: 0.05,
   longitudeDelta: 0.05,
 };
+
+const DARK_MAP_STYLE = [
+  { elementType: 'geometry', stylers: [{ color: '#031017' }] },
+  { elementType: 'labels.text.fill', stylers: [{ color: '#6f8793' }] },
+  { elementType: 'labels.text.stroke', stylers: [{ color: '#031017' }] },
+  { featureType: 'administrative', elementType: 'geometry.stroke', stylers: [{ color: '#12303c' }] },
+  { featureType: 'landscape', elementType: 'geometry', stylers: [{ color: '#04131a' }] },
+  { featureType: 'poi', elementType: 'geometry', stylers: [{ color: '#0b2028' }] },
+  { featureType: 'poi', elementType: 'labels.text.fill', stylers: [{ color: '#6f8793' }] },
+  { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#12303c' }] },
+  { featureType: 'road', elementType: 'geometry.stroke', stylers: [{ color: '#0b2028' }] },
+  { featureType: 'road', elementType: 'labels.text.fill', stylers: [{ color: '#91a7b4' }] },
+  { featureType: 'transit', elementType: 'geometry', stylers: [{ color: '#102733' }] },
+  { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#02070b' }] },
+  { featureType: 'water', elementType: 'labels.text.fill', stylers: [{ color: '#4e6774' }] },
+];
 
 function parseMaybeJson(value, fallback) {
   if (!value) return fallback;
@@ -83,12 +98,24 @@ function formatDistance(distance) {
   return `${distance.toFixed(1)} mi`;
 }
 
+function NearbyGameIcon({ game, color }) {
+  const validatedIcon = validateIcon(game?.gameConfig?.icon);
+
+  if (validatedIcon.library === 'mci' && validatedIcon.name) {
+    return <MaterialCommunityIcons name={validatedIcon.name} size={20} color={color} />;
+  }
+
+  return <Ionicons name="game-controller-outline" size={20} color={color} />;
+}
+
 export default function MapScreen({ navigation }) {
   const insets = useSafeAreaInsets();
   const isFocused = useIsFocused();
   const mapRef = useRef(null);
+  const listScrollRef = useRef(null);
 
   const [userLocation, setUserLocation] = useState(null);
+  const [mapRegion, setMapRegion] = useState(FALLBACK_REGION);
   const [games, setGames] = useState([]);
   const [selectedGameId, setSelectedGameId] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -120,6 +147,7 @@ export default function MapScreen({ navigation }) {
           latitude: position.coords.latitude,
           longitude: position.coords.longitude,
         });
+        setMapRegion(nextRegion);
         mapRef.current?.animateToRegion(nextRegion, 350);
       } catch (error) {
         console.error('[MAP] Failed to capture current location:', error);
@@ -150,6 +178,7 @@ export default function MapScreen({ navigation }) {
       if (!allRes.ok) {
         throw new Error(`Server returned ${allRes.status}`);
       }
+
       const allPayload = await allRes.json();
       const normalizedAll = allPayload.map(normalizeGame);
       const unplaced = normalizedAll.filter((game) => !hasCoordinates(game));
@@ -172,21 +201,14 @@ export default function MapScreen({ navigation }) {
       }
 
       const mergedById = new Map();
-      for (const game of unplaced) {
-        mergedById.set(game.id, game);
-      }
-      for (const game of placedInView) {
-        mergedById.set(game.id, game);
-      }
-      const normalizedGames = [...mergedById.values()];
+      for (const game of unplaced) mergedById.set(game.id, game);
+      for (const game of placedInView) mergedById.set(game.id, game);
 
+      const normalizedGames = [...mergedById.values()];
       setGames(normalizedGames);
 
-      if (selectedGameId) {
-        const updatedSelection = normalizedGames.find((game) => game.id === selectedGameId);
-        if (!updatedSelection) {
-          setSelectedGameId(null);
-        }
+      if (selectedGameId && !normalizedGames.find((game) => game.id === selectedGameId)) {
+        setSelectedGameId(null);
       }
     } catch (error) {
       console.error('[MAP] Failed to load games:', error);
@@ -203,14 +225,33 @@ export default function MapScreen({ navigation }) {
   }, [isFocused, userLocation]);
 
   const placedGames = games.filter(hasCoordinates);
-  const unplacedGames = games.filter((game) => !hasCoordinates(game));
-  const selectedGame = games.find((game) => game.id === selectedGameId) ?? null;
+  const waitingCount = games.length - placedGames.length;
+  const nearbyGames = useMemo(
+    () =>
+      [...placedGames].sort((left, right) => {
+        const leftDistance = milesBetween(userLocation, left);
+        const rightDistance = milesBetween(userLocation, right);
+        return (leftDistance ?? Number.MAX_SAFE_INTEGER) - (rightDistance ?? Number.MAX_SAFE_INTEGER);
+      }),
+    [placedGames, userLocation]
+  );
 
-  const nearbyGames = [...placedGames].sort((left, right) => {
-    const leftDistance = milesBetween(userLocation, left);
-    const rightDistance = milesBetween(userLocation, right);
-    return (leftDistance ?? Number.MAX_SAFE_INTEGER) - (rightDistance ?? Number.MAX_SAFE_INTEGER);
-  });
+  const summaryText =
+    waitingCount > 0
+      ? `${nearbyGames.length} nearby games, ${waitingCount} still waiting for placement`
+      : `${nearbyGames.length} nearby games ready to play`;
+
+  useEffect(() => {
+    if (!selectedGameId) return;
+
+    const listIndex = nearbyGames.findIndex((game) => game.id === selectedGameId);
+    if (listIndex >= 0) {
+      listScrollRef.current?.scrollTo({
+        y: listIndex * GAME_ROW_HEIGHT,
+        animated: true,
+      });
+    }
+  }, [selectedGameId, nearbyGames]);
 
   function focusGame(game) {
     setSelectedGameId(game.id);
@@ -223,6 +264,7 @@ export default function MapScreen({ navigation }) {
         longitudeDelta: 0.015,
       };
 
+      setMapRegion(nextRegion);
       mapRef.current?.animateToRegion(nextRegion, 350);
     }
   }
@@ -234,28 +276,49 @@ export default function MapScreen({ navigation }) {
     });
   }
 
-  const selectedDistance = selectedGame ? formatDistance(milesBetween(userLocation, selectedGame)) : null;
+  function zoomMap(scale) {
+    const nextRegion = {
+      ...mapRegion,
+      latitudeDelta: Math.min(Math.max(mapRegion.latitudeDelta * scale, 0.003), 0.3),
+      longitudeDelta: Math.min(Math.max(mapRegion.longitudeDelta * scale, 0.003), 0.3),
+    };
+
+    setMapRegion(nextRegion);
+    mapRef.current?.animateToRegion(nextRegion, 250);
+  }
+
+  function centerOnUser() {
+    if (!userLocation) return;
+
+    const nextRegion = {
+      latitude: userLocation.latitude,
+      longitude: userLocation.longitude,
+      latitudeDelta: 0.02,
+      longitudeDelta: 0.02,
+    };
+
+    setMapRegion(nextRegion);
+    mapRef.current?.animateToRegion(nextRegion, 300);
+  }
 
   return (
     <View style={styles.container}>
-      <View style={[styles.mapWrap, { paddingTop: insets.top }]}>
+      <StatusBar style="light" backgroundColor={COLORS.bg} />
+
+      <View style={styles.mapSection}>
         <MapView
           ref={mapRef}
           style={styles.map}
           initialRegion={FALLBACK_REGION}
-          mapType={Platform.OS === 'android' ? 'none' : 'standard'}
+          mapType="standard"
+          customMapStyle={DARK_MAP_STYLE}
           showsUserLocation
           showsMyLocationButton
           showsCompass
+          toolbarEnabled={false}
+          rotateEnabled={false}
+          onRegionChangeComplete={(region) => setMapRegion(region)}
         >
-          <UrlTile
-            urlTemplate={ARCGIS_TILE_URL}
-            maximumZ={19}
-            flipY={false}
-            shouldReplaceMapContent
-            zIndex={0}
-          />
-
           {placedGames.map((game) => {
             const color = getGameTheme(game.gameType);
             const active = game.id === selectedGameId;
@@ -266,119 +329,102 @@ export default function MapScreen({ navigation }) {
                 coordinate={{ latitude: game.latitude, longitude: game.longitude }}
                 title={game.title}
                 description={game.objectLabel}
-                pinColor={active ? COLORS.highlight : color}
+                anchor={{ x: 0.5, y: 0.92 }}
                 onPress={() => focusGame(game)}
-              />
+              >
+                <View style={styles.markerWrap}>
+                  <View style={[styles.markerShadow, active && styles.markerShadowActive]} />
+                  <View
+                    style={[
+                      styles.markerPin,
+                      { backgroundColor: active ? COLORS.highlight : '#ffffff' },
+                    ]}
+                  >
+                    <View
+                      style={[
+                        styles.markerDot,
+                        { backgroundColor: active ? COLORS.bg : color },
+                      ]}
+                    />
+                  </View>
+                </View>
+              </Marker>
             );
           })}
         </MapView>
-      </View>
 
-      <View style={[styles.panel, { paddingBottom: insets.bottom + 92 }]}>
-        <View style={styles.panelHeader}>
-          <View>
-            <Text style={styles.panelTitle}>Map Games</Text>
-            <Text style={styles.panelSub}>
-              {placedGames.length} placed · {unplacedGames.length} waiting
-            </Text>
-          </View>
+        <View
+          pointerEvents="none"
+          style={[styles.statusBarScrim, { height: insets.top + 18 }]}
+        />
 
+        <View style={[styles.mapControls, { top: insets.top + 22 }]}>
           <TouchableOpacity
-            style={styles.refreshBtn}
-            activeOpacity={0.8}
-            onPress={() => fetchGames(false)}
-            disabled={refreshing}
+            style={styles.mapControlBtn}
+            activeOpacity={0.82}
+            onPress={centerOnUser}
+            disabled={!userLocation}
           >
-            {refreshing ? (
-              <ActivityIndicator size="small" color={COLORS.bg} />
-            ) : (
-              <Ionicons name="refresh" size={16} color={COLORS.bg} />
-            )}
+            <Ionicons
+              name="locate"
+              size={18}
+              color={userLocation ? COLORS.text : COLORS.textMuted}
+            />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.mapControlBtn}
+            activeOpacity={0.82}
+            onPress={() => zoomMap(0.6)}
+          >
+            <Ionicons name="add" size={20} color={COLORS.text} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.mapControlBtn}
+            activeOpacity={0.82}
+            onPress={() => zoomMap(1.6)}
+          >
+            <Ionicons name="remove" size={20} color={COLORS.text} />
           </TouchableOpacity>
         </View>
+      </View>
 
-        {loading && !locationReady ? (
-          <View style={styles.loadingState}>
-            <ActivityIndicator size="small" color={COLORS.seafoam} />
-            <Text style={styles.loadingText}>Loading map context...</Text>
-          </View>
-        ) : null}
-
-        {selectedGame ? (
-          <View style={styles.selectedCard}>
-            <View style={styles.selectedHeader}>
-              <View>
-                <Text style={styles.selectedTitle}>{selectedGame.title}</Text>
-                <Text
-                  style={[
-                    styles.selectedMeta,
-                    { color: getGameTheme(selectedGame.gameType) },
-                  ]}
-                >
-                  {selectedGame.gameType} · {selectedDistance ?? 'Selected'}
-                </Text>
-              </View>
-
-              <TouchableOpacity
-                style={styles.playBtn}
-                activeOpacity={0.85}
-                onPress={() => openGame(selectedGame)}
-              >
-                <Ionicons name="game-controller-outline" size={16} color={COLORS.bg} />
-                <Text style={styles.playBtnText}>Play</Text>
-              </TouchableOpacity>
-            </View>
-
-            <Text style={styles.selectedHint}>
-              {hasCoordinates(selectedGame)
-                ? `Pinned at ${selectedGame.latitude.toFixed(4)}, ${selectedGame.longitude.toFixed(4)}`
-                : 'This game does not have map coordinates yet.'}
-            </Text>
-          </View>
-        ) : null}
-
+      <View style={styles.listPanel}>
         <ScrollView
-          style={styles.list}
-          contentContainerStyle={styles.listContent}
+          ref={listScrollRef}
           showsVerticalScrollIndicator={false}
+          contentContainerStyle={[styles.listContent, { paddingBottom: insets.bottom + 74 }]}
         >
-          {unplacedGames.length > 0 && (
-            <>
-              <Text style={styles.sectionTitle}>Needs Placement</Text>
-              {unplacedGames.map((game) => {
-                const active = game.id === selectedGameId;
-                const color = getGameTheme(game.gameType);
+          <View style={styles.listHeader}>
+            <View style={styles.listCopy}>
+              <Text style={styles.listEyebrow}>Map Feed</Text>
+              <Text style={styles.listTitle}>Nearby Games</Text>
+              <Text style={styles.listSubtitle}>
+                {locationReady ? summaryText : 'Finding your location...'}
+              </Text>
+            </View>
+            <TouchableOpacity
+              style={styles.refreshBtn}
+              activeOpacity={0.82}
+              onPress={() => fetchGames(false)}
+              disabled={refreshing}
+            >
+              {refreshing ? (
+                <ActivityIndicator size="small" color={COLORS.text} />
+              ) : (
+                <Ionicons name="refresh" size={16} color={COLORS.text} />
+              )}
+            </TouchableOpacity>
+          </View>
 
-                return (
-                  <TouchableOpacity
-                    key={game.id}
-                    style={[styles.row, active && styles.rowActive]}
-                    activeOpacity={0.78}
-                    onPress={() => {
-                      setSelectedGameId(game.id);
-                    }}
-                  >
-                    <View style={[styles.rowIcon, { backgroundColor: color + '22', borderColor: color + '55' }]}>
-                      <Ionicons name="pin-outline" size={16} color={color} />
-                    </View>
-                    <View style={styles.rowInfo}>
-                      <Text style={styles.rowTitle}>{game.title}</Text>
-                      <Text style={[styles.rowType, { color }]}>
-                        {game.gameType} · location pending
-                      </Text>
-                    </View>
-                    <Text style={styles.rowAction}>Pending</Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </>
-          )}
-
-          <Text style={styles.sectionTitle}>Nearby Games</Text>
-          {nearbyGames.length === 0 ? (
+          {loading && !locationReady ? (
+            <View style={styles.loadingState}>
+              <ActivityIndicator size="small" color={COLORS.seafoam} />
+              <Text style={styles.loadingText}>Loading map details...</Text>
+            </View>
+          ) : nearbyGames.length === 0 ? (
             <View style={styles.emptyState}>
               <Ionicons name="map-outline" size={20} color={COLORS.textMuted} />
-              <Text style={styles.emptyText}>No placed games yet. Start by dropping one above.</Text>
+              <Text style={styles.emptyText}>No nearby games yet.</Text>
             </View>
           ) : (
             nearbyGames.map((game) => {
@@ -387,23 +433,41 @@ export default function MapScreen({ navigation }) {
               const distance = formatDistance(milesBetween(userLocation, game));
 
               return (
-                <TouchableOpacity
-                  key={game.id}
-                  style={[styles.row, active && styles.rowActive]}
-                  activeOpacity={0.78}
-                  onPress={() => focusGame(game)}
-                >
-                  <View style={[styles.rowIcon, { backgroundColor: color + '22', borderColor: color + '55' }]}>
-                    <Ionicons name="game-controller-outline" size={16} color={color} />
+                <View key={game.id} style={[styles.gameRow, active && styles.gameRowActive]}>
+                  <TouchableOpacity
+                    style={styles.gameMain}
+                    activeOpacity={0.8}
+                    onPress={() => focusGame(game)}
+                  >
+                    <View
+                      style={[
+                        styles.gameIcon,
+                        { backgroundColor: color + '14', borderColor: color + '26' },
+                      ]}
+                    >
+                      <NearbyGameIcon game={game} color={color} />
+                    </View>
+
+                    <View style={styles.gameInfo}>
+                      <Text style={styles.gameTitle}>{game.title}</Text>
+                      <Text style={[styles.gameMeta, { color }]}>
+                        {game.objectLabel}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+
+                  <View style={styles.gameAside}>
+                    <Text style={styles.gameDistance}>{distance}</Text>
+                    <TouchableOpacity
+                      style={styles.playBtn}
+                      activeOpacity={0.86}
+                      onPress={() => openGame(game)}
+                    >
+                      <Ionicons name="play" size={12} color={COLORS.bg} />
+                      <Text style={styles.playBtnText}>Play</Text>
+                    </TouchableOpacity>
                   </View>
-                  <View style={styles.rowInfo}>
-                    <Text style={styles.rowTitle}>{game.title}</Text>
-                    <Text style={[styles.rowType, { color }]}>
-                      {game.gameType} · {game.objectLabel}
-                    </Text>
-                  </View>
-                  <Text style={styles.rowAction}>{distance}</Text>
-                </TouchableOpacity>
+                </View>
               );
             })
           )}
@@ -414,166 +478,215 @@ export default function MapScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.bg },
-  mapWrap: {
+  container: {
     flex: 1,
+    backgroundColor: COLORS.bg,
+  },
+  mapSection: {
+    flex: 7,
+    overflow: 'hidden',
+    borderBottomLeftRadius: 26,
+    borderBottomRightRadius: 26,
     backgroundColor: COLORS.surface,
   },
   map: {
     flex: 1,
   },
-  panel: {
-    maxHeight: '52%',
-    backgroundColor: COLORS.surfaceLighter,
-    borderTopLeftRadius: 26,
-    borderTopRightRadius: 26,
-    borderTopWidth: 1,
-    borderColor: COLORS.cyan + '44',
-    paddingTop: 18,
-    paddingHorizontal: 20,
+  statusBarScrim: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: 'rgba(2,7,11,0.62)',
   },
-  panelHeader: {
+  mapControls: {
+    position: 'absolute',
+    right: 16,
+    gap: 10,
+  },
+  mapControlBtn: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.surface,
+    borderWidth: 1,
+    borderColor: COLORS.cyan + '44',
+    shadowColor: '#0f172a',
+    shadowOpacity: 0.22,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 8,
+  },
+  listPanel: {
+    flex: 3,
+    backgroundColor: COLORS.bg,
+    paddingHorizontal: 20,
+    paddingTop: 18,
+  },
+  listHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 16,
+    gap: 12,
+    marginBottom: 12,
   },
-  panelTitle: {
+  listCopy: {
+    flex: 1,
+  },
+  listEyebrow: {
+    color: COLORS.seafoam,
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+    marginBottom: 3,
+  },
+  listTitle: {
     color: COLORS.text,
-    fontSize: 18,
+    fontSize: 22,
     fontWeight: '700',
   },
-  panelSub: {
+  listSubtitle: {
     color: COLORS.textMuted,
     fontSize: 12,
+    lineHeight: 17,
     marginTop: 2,
   },
   refreshBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: COLORS.seafoam,
+    backgroundColor: COLORS.surface,
+    borderWidth: 1,
+    borderColor: COLORS.textDim,
   },
   loadingState: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    marginBottom: 12,
+    gap: 8,
+    paddingTop: 4,
   },
   loadingText: {
     color: COLORS.textMuted,
-    fontSize: 12,
+    fontSize: 11,
   },
-  selectedCard: {
-    backgroundColor: COLORS.surface,
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: COLORS.cyan + '44',
-    padding: 16,
-    marginBottom: 16,
-    gap: 10,
+  markerWrap: {
+    alignItems: 'center',
   },
-  selectedHeader: {
+  markerShadow: {
+    position: 'absolute',
+    bottom: 1,
+    width: 18,
+    height: 7,
+    borderRadius: 999,
+    backgroundColor: 'rgba(2,7,11,0.45)',
+  },
+  markerShadowActive: {
+    width: 22,
+    backgroundColor: 'rgba(2,7,11,0.62)',
+  },
+  markerPin: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    borderWidth: 3,
+    borderColor: 'rgba(17,24,39,0.08)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#0f172a',
+    shadowOpacity: 0.18,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 6,
+  },
+  markerDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+  },
+  listContent: {
+    gap: 8,
+  },
+  gameRow: {
     flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
     gap: 12,
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: COLORS.textDim,
+    backgroundColor: COLORS.surface,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
   },
-  selectedTitle: {
+  gameRowActive: {
+    borderColor: COLORS.highlight + '66',
+    backgroundColor: COLORS.surfaceLighter,
+  },
+  gameMain: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  gameIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 16,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  gameInfo: {
+    flex: 1,
+  },
+  gameTitle: {
     color: COLORS.text,
-    fontSize: 16,
-    fontWeight: '700',
+    fontSize: 15,
+    fontWeight: '600',
   },
-  selectedMeta: {
+  gameMeta: {
     fontSize: 12,
     marginTop: 3,
-    textTransform: 'capitalize',
   },
-  selectedHint: {
+  gameAside: {
+    alignItems: 'flex-end',
+    gap: 8,
+  },
+  gameDistance: {
     color: COLORS.textMuted,
     fontSize: 12,
-    lineHeight: 18,
+    fontWeight: '700',
   },
   playBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 5,
     backgroundColor: COLORS.highlight,
-    borderRadius: 14,
+    borderRadius: 999,
     paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingVertical: 8,
   },
   playBtnText: {
     color: COLORS.bg,
     fontSize: 12,
     fontWeight: '700',
   },
-  list: {
-    flex: 1,
-  },
-  listContent: {
-    paddingBottom: 24,
-  },
-  sectionTitle: {
-    color: COLORS.text,
-    fontSize: 13,
-    fontWeight: '700',
-    marginBottom: 10,
-    marginTop: 4,
-    letterSpacing: 0.3,
-  },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: 'transparent',
-    backgroundColor: COLORS.surface,
-    paddingHorizontal: 14,
-    paddingVertical: 13,
-    marginBottom: 10,
-  },
-  rowActive: {
-    borderColor: COLORS.highlight + '66',
-  },
-  rowIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 12,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  rowInfo: {
-    flex: 1,
-  },
-  rowTitle: {
-    color: COLORS.text,
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  rowType: {
-    fontSize: 11,
-    marginTop: 2,
-    textTransform: 'capitalize',
-  },
-  rowAction: {
-    color: COLORS.textMuted,
-    fontSize: 12,
-    fontWeight: '600',
-  },
   emptyState: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
+    marginTop: 16,
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: COLORS.textDim,
     backgroundColor: COLORS.surface,
-    borderRadius: 16,
     padding: 14,
   },
   emptyText: {
-    flex: 1,
     color: COLORS.textMuted,
     fontSize: 12,
     lineHeight: 18,

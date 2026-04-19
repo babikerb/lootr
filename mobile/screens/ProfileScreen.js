@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { StatusBar } from 'expo-status-bar';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS } from '../theme';
@@ -21,56 +22,59 @@ export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
 
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={{ paddingTop: insets.top + 16, paddingBottom: insets.bottom + 100 }}
-      showsVerticalScrollIndicator={false}
-    >
-      <View style={styles.avatarWrap}>
-        <View style={styles.avatarRing}>
-          <Ionicons name="person" size={38} color={COLORS.seafoam} />
+    <>
+      <StatusBar style="light" backgroundColor={COLORS.bg} />
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={{ paddingTop: insets.top + 16, paddingBottom: insets.bottom + 100 }}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.avatarWrap}>
+          <View style={styles.avatarRing}>
+            <Ionicons name="person" size={38} color={COLORS.seafoam} />
+          </View>
+          <Text style={styles.name}>Player One</Text>
+          <Text style={styles.handle}>@lootr_user</Text>
         </View>
-        <Text style={styles.name}>Player One</Text>
-        <Text style={styles.handle}>@lootr_user</Text>
-      </View>
 
-      <View style={styles.statsGrid}>
-        {STATS.map(s => (
-          <View key={s.label} style={[styles.statCard, { borderColor: s.color + '44' }]}>
-            <Ionicons name={s.icon} size={20} color={s.color} />
-            <Text style={[styles.statValue, { color: s.color }]}>{s.value}</Text>
-            <Text style={styles.statLabel}>{s.label}</Text>
-          </View>
-        ))}
-      </View>
-
-      <Text style={styles.sectionTitle}>Recent Activity</Text>
-      <View style={styles.activityList}>
-        {ACTIVITY.map(a => (
-          <View
-            key={a.id}
-            style={[
-              styles.activityRow,
-              { backgroundColor: a.id === '2' ? COLORS.kelp : COLORS.surface },
-            ]}
-          >
-            <View style={[styles.activityIcon, { backgroundColor: a.color + '22', borderColor: a.color + '55' }]}>
-              <Ionicons name={a.icon} size={16} color={a.color} />
+        <View style={styles.statsGrid}>
+          {STATS.map(s => (
+            <View key={s.label} style={[styles.statCard, { borderColor: s.color + '44' }]}>
+              <Ionicons name={s.icon} size={20} color={s.color} />
+              <Text style={[styles.statValue, { color: s.color }]}>{s.value}</Text>
+              <Text style={styles.statLabel}>{s.label}</Text>
             </View>
-            <View style={styles.activityInfo}>
-              <Text style={styles.activityText}>{a.text}</Text>
-              <Text style={[styles.activitySub, { color: a.color }]}>{a.sub}</Text>
-            </View>
-          </View>
-        ))}
-      </View>
+          ))}
+        </View>
 
-      <TouchableOpacity style={styles.feedbackRow} activeOpacity={0.75}>
-        <Ionicons name="chatbubble-ellipses-outline" size={18} color={COLORS.electricIndigo} />
-        <Text style={[styles.feedbackText, { color: COLORS.electricIndigo }]}>View feedback history</Text>
-        <Ionicons name="chevron-forward" size={16} color={COLORS.electricIndigo + '77'} />
-      </TouchableOpacity>
-    </ScrollView>
+        <Text style={styles.sectionTitle}>Recent Activity</Text>
+        <View style={styles.activityList}>
+          {ACTIVITY.map(a => (
+            <View
+              key={a.id}
+              style={[
+                styles.activityRow,
+                { backgroundColor: a.id === '2' ? COLORS.kelp : COLORS.surface },
+              ]}
+            >
+              <View style={[styles.activityIcon, { backgroundColor: a.color + '22', borderColor: a.color + '55' }]}>
+                <Ionicons name={a.icon} size={16} color={a.color} />
+              </View>
+              <View style={styles.activityInfo}>
+                <Text style={styles.activityText}>{a.text}</Text>
+                <Text style={[styles.activitySub, { color: a.color }]}>{a.sub}</Text>
+              </View>
+            </View>
+          ))}
+        </View>
+
+        <TouchableOpacity style={styles.feedbackRow} activeOpacity={0.75}>
+          <Ionicons name="chatbubble-ellipses-outline" size={18} color={COLORS.electricIndigo} />
+          <Text style={[styles.feedbackText, { color: COLORS.electricIndigo }]}>View feedback history</Text>
+          <Ionicons name="chevron-forward" size={16} color={COLORS.electricIndigo + '77'} />
+        </TouchableOpacity>
+      </ScrollView>
+    </>
   );
 }
 

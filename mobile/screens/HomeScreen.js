@@ -14,10 +14,11 @@ import {
   View,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
+import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS } from '../theme';
 import { validateIcon } from '../utils/iconValidator';
-import { getMostRecentPlayedGame, saveScannedGame } from '../utils/scannedGamesStorage';
+import { getScannedGames, saveScannedGame } from '../utils/scannedGamesStorage';
 import { toTitleCase } from '../utils/text';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL;
@@ -91,15 +92,21 @@ export default function HomeScreen({ navigation }) {
   const insets = useSafeAreaInsets();
   const [scanning, setScanning] = useState(false);
   const [scanResult, setScanResult] = useState(null);
-  const [recentGame, setRecentGame] = useState(null);
+  const [recentGames, setRecentGames] = useState([]);
   const [recentGameLoading, setRecentGameLoading] = useState(true);
+  const [showAllRecentGames, setShowAllRecentGames] = useState(false);
 
-  const loadRecentGame = useCallback(async () => {
+  const loadRecentGames = useCallback(async () => {
     setRecentGameLoading(true);
 
     try {
-      const latestPlayedGame = await getMostRecentPlayedGame();
-      setRecentGame(latestPlayedGame);
+      const storedGames = await getScannedGames();
+      const playedGames = storedGames
+        .filter(game => !!game.lastPlayedAt)
+        .sort((a, b) => new Date(b.lastPlayedAt).getTime() - new Date(a.lastPlayedAt).getTime());
+
+      setRecentGames(playedGames);
+      setShowAllRecentGames(false);
     } finally {
       setRecentGameLoading(false);
     }
@@ -107,9 +114,11 @@ export default function HomeScreen({ navigation }) {
 
   useFocusEffect(
     useCallback(() => {
-      loadRecentGame();
-    }, [loadRecentGame])
+      loadRecentGames();
+    }, [loadRecentGames])
   );
+
+  const visibleRecentGames = showAllRecentGames ? recentGames : recentGames.slice(0, 3);
 
   async function openCamera() {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
@@ -186,6 +195,7 @@ export default function HomeScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
+      <StatusBar style="light" backgroundColor={COLORS.bg} />
       <ScrollView
         contentContainerStyle={[
           styles.scroll,
@@ -224,49 +234,62 @@ export default function HomeScreen({ navigation }) {
         </View>
 
         <View style={styles.sectionRow}>
-          <Text style={styles.sectionTitle}>Most Recently Played</Text>
-          <TouchableOpacity onPress={() => navigation.navigate('Games')}>
-            <Text style={[styles.seeAll, { color: COLORS.text }]}>See All</Text>
-          </TouchableOpacity>
+          <Text style={styles.sectionTitle}>Recently Played</Text>
+          {recentGames.length > 3 ? (
+            <TouchableOpacity onPress={() => setShowAllRecentGames(current => !current)}>
+              <Text style={[styles.seeAll, { color: COLORS.text }]}>
+                {showAllRecentGames ? 'Show Less' : 'Show More'}
+              </Text>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity onPress={() => navigation.navigate('Games')}>
+              <Text style={[styles.seeAll, { color: COLORS.text }]}>See All</Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         {recentGameLoading ? (
           <View style={styles.recentStateCard}>
             <ActivityIndicator size="small" color={COLORS.seafoam} />
-            <Text style={styles.recentStateText}>Loading your last played game...</Text>
+            <Text style={styles.recentStateText}>Loading your recent games...</Text>
           </View>
-        ) : recentGame ? (
-          <TouchableOpacity
-            style={styles.gameCard}
-            activeOpacity={0.75}
-            onPress={() => navigation.navigate('Game', {
-              gameConfig: recentGame.gameConfig,
-              objectLabel: recentGame.objectLabel,
-              initialGameType: getRecentPlayedGameType(recentGame),
-            })}
-          >
-            <View style={[
-              styles.gameIconWrap,
-              {
-                backgroundColor: getRecentGameColor(getRecentPlayedGameType(recentGame)) + '28',
-                borderColor: getRecentGameColor(getRecentPlayedGameType(recentGame)) + '55',
-              },
-            ]}>
-              <RecentGameIcon
-                game={recentGame}
-                color={getRecentGameColor(getRecentPlayedGameType(recentGame))}
-              />
-            </View>
-            <View style={styles.gameInfo}>
-              <Text style={styles.gameTitle}>
-                {getRecentGameTitle(recentGame)}
-              </Text>
-              <Text style={[styles.gameMeta, { color: getRecentGameColor(getRecentPlayedGameType(recentGame)) }]}>
-                {getRecentPlayedGameType(recentGame)}
-              </Text>
-            </View>
-            <Ionicons name="chevron-forward" size={18} color={COLORS.textMuted} />
-          </TouchableOpacity>
+        ) : recentGames.length > 0 ? (
+          <>
+            {visibleRecentGames.map((recentGame) => (
+              <TouchableOpacity
+                key={recentGame.id}
+                style={styles.gameCard}
+                activeOpacity={0.75}
+                onPress={() => navigation.navigate('Game', {
+                  gameConfig: recentGame.gameConfig,
+                  objectLabel: recentGame.objectLabel,
+                  initialGameType: getRecentPlayedGameType(recentGame),
+                })}
+              >
+                <View style={[
+                  styles.gameIconWrap,
+                  {
+                    backgroundColor: getRecentGameColor(getRecentPlayedGameType(recentGame)) + '28',
+                    borderColor: getRecentGameColor(getRecentPlayedGameType(recentGame)) + '55',
+                  },
+                ]}>
+                  <RecentGameIcon
+                    game={recentGame}
+                    color={getRecentGameColor(getRecentPlayedGameType(recentGame))}
+                  />
+                </View>
+                <View style={styles.gameInfo}>
+                  <Text style={styles.gameTitle}>
+                    {getRecentGameTitle(recentGame)}
+                  </Text>
+                  <Text style={[styles.gameMeta, { color: getRecentGameColor(getRecentPlayedGameType(recentGame)) }]}>
+                    {getRecentPlayedGameType(recentGame)}
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color={COLORS.textMuted} />
+              </TouchableOpacity>
+            ))}
+          </>
         ) : (
           <View style={styles.recentStateCard}>
             <Ionicons name="game-controller-outline" size={28} color={COLORS.textMuted} />

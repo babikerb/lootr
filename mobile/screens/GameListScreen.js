@@ -1,5 +1,6 @@
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
+import { StatusBar } from 'expo-status-bar';
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, Dimensions, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -102,6 +103,7 @@ export default function GameListScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
+      <StatusBar style="light" backgroundColor={COLORS.bg} />
       <ScrollView
         contentContainerStyle={[
           styles.scroll,
