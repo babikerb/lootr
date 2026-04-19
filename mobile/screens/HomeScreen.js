@@ -1,8 +1,8 @@
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as ImageManipulator from 'expo-image-manipulator';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -13,23 +13,101 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS } from '../theme';
+import { getMostRecentPlayedGame, saveScannedGame } from '../utils/scannedGamesStorage';
+import { toTitleCase } from '../utils/text';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL;
 
-const RECENT_GAMES = [
-  { id: '1', title: 'Basketball Dodge',  type: 'dodge',   plays: 42, icon: 'basketball',          color: COLORS.coral },
-  { id: '2', title: 'Book Stack', type: 'stack', plays: 17, icon: 'book',      color: COLORS.anemone },
-  { id: '3', title: 'Cup Catch',     type: 'catch',   plays: 88, icon: 'hand-left',       color: COLORS.electricIndigo },
-  { id: '4', title: 'Book Swipe',    type: 'swipe',   plays: 33, icon: 'swap-horizontal', color: COLORS.seafoam },
-];
+const GAME_TYPE_COLORS = {
+  dodge: COLORS.coral,
+  balance: COLORS.anemone,
+  catch: COLORS.seafoam,
+  swipe: COLORS.electricIndigo,
+  timing: COLORS.cyan,
+  runner: COLORS.highlight,
+};
 
+const GAME_TYPE_LABELS = {
+  dodge: 'Dodge',
+  balance: 'Balance',
+  catch: 'Catch',
+  swipe: 'Swipe',
+  timing: 'Timing',
+  runner: 'Runner',
+};
+
+function getRecentGameColor(gameType) {
+  return GAME_TYPE_COLORS[gameType] ?? COLORS.seafoam;
+}
+
+function getRecentGameIconName(game) {
+  return game?.gameConfig?.icon?.name || 'game-controller-outline';
+}
+
+function RecentGameIcon({ game, color }) {
+  const iconLibrary = game?.gameConfig?.icon?.library;
+  const iconName = getRecentGameIconName(game);
+
+  if (iconLibrary === 'mci' && iconName) {
+    return <MaterialCommunityIcons name={iconName} size={20} color={color} />;
+  }
+
+  return <Ionicons name="game-controller-outline" size={20} color={color} />;
+}
+
+function getRecentPlayedGameType(game) {
+  return game?.lastPlayedGameType ?? game?.gameConfig?.gameType ?? 'game';
+}
+
+function getRecentGameTitle(game) {
+  const playedGameType = getRecentPlayedGameType(game);
+  const primaryGameType = game?.gameConfig?.gameType;
+
+  if (playedGameType && primaryGameType && playedGameType !== primaryGameType) {
+    return `${toTitleCase(game?.objectLabel)} ${GAME_TYPE_LABELS[playedGameType] ?? toTitleCase(playedGameType)}`;
+  }
+
+  return toTitleCase(game?.gameConfig?.title ?? game?.objectLabel);
+}
+
+function formatLocationLabel(placemark) {
+  if (!placemark) return null;
+
+  const area = placemark.district || placemark.subregion || placemark.city || placemark.region;
+  const region = placemark.region && placemark.region !== area ? placemark.region : null;
+
+  if (area && region) return `${area}, ${region}`;
+  if (area) return area;
+
+  return placemark.country || null;
+}
 
 export default function HomeScreen({ navigation }) {
   const insets = useSafeAreaInsets();
   const [scanning, setScanning] = useState(false);
   const [scanResult, setScanResult] = useState(null);
+  const [recentGame, setRecentGame] = useState(null);
+  const [recentGameLoading, setRecentGameLoading] = useState(true);
+
+  const loadRecentGame = useCallback(async () => {
+    setRecentGameLoading(true);
+
+    try {
+      const latestPlayedGame = await getMostRecentPlayedGame();
+      setRecentGame(latestPlayedGame);
+    } finally {
+      setRecentGameLoading(false);
+    }
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadRecentGame();
+    }, [loadRecentGame])
+  );
 
   async function openCamera() {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
@@ -54,6 +132,14 @@ export default function HomeScreen({ navigation }) {
         accuracy: Location.Accuracy.Balanced,
       });
       const { latitude, longitude } = position.coords;
+      let locationLabel = null;
+
+      try {
+        const [placemark] = await Location.reverseGeocodeAsync({ latitude, longitude });
+        locationLabel = formatLocationLabel(placemark);
+      } catch (reverseGeocodeError) {
+        console.log('[SCAN] Reverse geocode unavailable:', reverseGeocodeError.message);
+      }
 
       // Resize to 512px wide — vision models don't need full resolution
       const resized = await ImageManipulator.manipulateAsync(
@@ -84,8 +170,10 @@ export default function HomeScreen({ navigation }) {
       }
 
       const data = await response.json();
+      const savedScan = { ...data, locationLabel };
       console.log('[SCAN] Result:', JSON.stringify(data));
-      setScanResult(data);
+      await saveScannedGame(savedScan);
+      setScanResult(savedScan);
     } catch (error) {
       console.error('[SCAN] Fetch error:', error.message);
       Alert.alert('Scan Failed', error.message || 'Could not reach the server.');
@@ -137,28 +225,58 @@ export default function HomeScreen({ navigation }) {
         </View>
 
         <View style={styles.sectionRow}>
-          <Text style={styles.sectionTitle}>Recent Games</Text>
+          <Text style={styles.sectionTitle}>Most Recently Played</Text>
           <TouchableOpacity onPress={() => navigation.navigate('Games')}>
             <Text style={[styles.seeAll, { color: COLORS.text }]}>See All</Text>
           </TouchableOpacity>
         </View>
 
-        {RECENT_GAMES.map(game => (
+        {recentGameLoading ? (
+          <View style={styles.recentStateCard}>
+            <ActivityIndicator size="small" color={COLORS.seafoam} />
+            <Text style={styles.recentStateText}>Loading your last played game...</Text>
+          </View>
+        ) : recentGame ? (
           <TouchableOpacity
-            key={game.id}
-            style={[styles.gameCard, { backgroundColor: game.id === '3' ? COLORS.kelp : COLORS.surface }]}
+            style={styles.gameCard}
             activeOpacity={0.75}
+            onPress={() => navigation.navigate('Game', {
+              gameConfig: recentGame.gameConfig,
+              objectLabel: recentGame.objectLabel,
+              initialGameType: getRecentPlayedGameType(recentGame),
+            })}
           >
-            <View style={[styles.gameIconWrap, { backgroundColor: game.color + '28', borderColor: game.color + '55' }]}>
-              <Ionicons name={game.icon} size={20} color={game.color} />
+            <View style={[
+              styles.gameIconWrap,
+              {
+                backgroundColor: getRecentGameColor(getRecentPlayedGameType(recentGame)) + '28',
+                borderColor: getRecentGameColor(getRecentPlayedGameType(recentGame)) + '55',
+              },
+            ]}>
+              <RecentGameIcon
+                game={recentGame}
+                color={getRecentGameColor(getRecentPlayedGameType(recentGame))}
+              />
             </View>
             <View style={styles.gameInfo}>
-              <Text style={styles.gameTitle}>{game.title}</Text>
-              <Text style={[styles.gameMeta, { color: game.color }]}>{game.type} · {game.plays} plays</Text>
+              <Text style={styles.gameTitle}>
+                {getRecentGameTitle(recentGame)}
+              </Text>
+              <Text style={[styles.gameMeta, { color: getRecentGameColor(getRecentPlayedGameType(recentGame)) }]}>
+                {getRecentPlayedGameType(recentGame)}
+              </Text>
             </View>
             <Ionicons name="chevron-forward" size={18} color={COLORS.textMuted} />
           </TouchableOpacity>
-        ))}
+        ) : (
+          <View style={styles.recentStateCard}>
+            <Ionicons name="game-controller-outline" size={28} color={COLORS.textMuted} />
+            <Text style={styles.recentStateTitle}>No games played yet</Text>
+            <Text style={styles.recentStateText}>
+              Scan something and start a game to see it here.
+            </Text>
+          </View>
+        )}
       </ScrollView>
 
       {/* Scan Result Modal */}
@@ -173,7 +291,7 @@ export default function HomeScreen({ navigation }) {
             <View style={styles.modalHandle} />
 
             <Text style={styles.modalLabel}>Object Detected</Text>
-            <Text style={styles.modalObject}>{scanResult?.objectLabel}</Text>
+            <Text style={styles.modalObject}>{toTitleCase(scanResult?.objectLabel)}</Text>
 
             <TouchableOpacity
               style={styles.playBtn}
@@ -297,6 +415,27 @@ const styles = StyleSheet.create({
   gameInfo: { flex: 1 },
   gameTitle: { color: COLORS.text, fontSize: 15, fontWeight: '600' },
   gameMeta: { fontSize: 12, marginTop: 2, textTransform: 'capitalize' },
+  recentStateCard: {
+    backgroundColor: COLORS.surface,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: COLORS.surfaceLighter,
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 24,
+    gap: 10,
+  },
+  recentStateTitle: {
+    color: COLORS.text,
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  recentStateText: {
+    color: COLORS.textMuted,
+    fontSize: 13,
+    textAlign: 'center',
+    lineHeight: 20,
+  },
 
   // Modal styles
   modalOverlay: {
