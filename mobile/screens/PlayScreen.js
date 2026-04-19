@@ -520,6 +520,7 @@ const GAME_HINTS = {
 };
 const GAME_LABELS = { dodge:"Dodge", catch:"Catch", balance:"Balance", runner:"Runner", swipe:"Swipe", timing:"Timing" };
 const SCORE_LABELS = { dodge:"dodged", catch:"caught", balance:"seconds survived", runner:"obstacles cleared", swipe:"swiped", timing:"perfect hits" };
+const PICKING_SUBTITLE = "This object could work as a couple of game styles. Pick the one you want to play.";
 
 // ─── SCREEN ──────────────────────────────────────────────────
 export default function PlayScreen({ route, navigation }) {
@@ -528,16 +529,17 @@ export default function PlayScreen({ route, navigation }) {
   const primaryType = gameConfig?.gameType ?? "dodge";
   const color = getGameTheme(primaryType);
   const alternates = gameConfig?.alternates ?? [];
-  const threshold = 0.70;
+  const primaryConfidence = gameConfig?.confidence ?? 1;
+  const threshold = 0.82;
 
   const allOptions = [
-    { gameType: primaryType, confidence: gameConfig?.confidence ?? 1 },
+    { gameType: primaryType, confidence: primaryConfidence },
     ...alternates
       .filter(a => a.confidence >= threshold && a.gameType !== primaryType)
       .sort((a, b) => b.confidence - a.confidence),
   ];
 
-  const hasChoice = allOptions.length > 1;
+  const hasChoice = allOptions.length > 1 && allOptions.some(opt => primaryConfidence - opt.confidence <= 0.12);
   const [phase, setPhase] = useState(hasChoice ? "picking" : "start");
   const [gameType, setGameType] = useState(hasChoice ? null : primaryType);
   const [finalScore, setFinalScore] = useState(0);
@@ -573,7 +575,7 @@ export default function PlayScreen({ route, navigation }) {
               <ObjIcon name={gameConfig?.icon?.name} size={52} color={color} />
             </View>
             <Text style={sh.overlayTitle}>{objectLabel}</Text>
-            <Text style={sh.overlayHint}>Fits multiple game types — you pick</Text>
+            <Text style={sh.overlayHint}>{PICKING_SUBTITLE}</Text>
             <View style={sh.pickGrid}>
               {allOptions.map(opt => {
                 const optColor = getGameTheme(opt.gameType);

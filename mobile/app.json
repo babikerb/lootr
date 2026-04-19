@@ -15,7 +15,8 @@
     "ios": {
       "supportsTablet": true,
       "infoPlist": {
-        "NSCameraUsageDescription": "Lootr uses your camera to scan real-world objects and turn them into playable mini-games."
+        "NSCameraUsageDescription": "Lootr uses your camera to scan real-world objects and turn them into playable mini-games.",
+        "NSLocationWhenInUseUsageDescription": "Lootr uses your location to save where the app was launched."
       }
     },
     "android": {
@@ -24,7 +25,11 @@
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "permissions": ["android.permission.CAMERA"]
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -34,6 +39,12 @@
         "expo-camera",
         {
           "cameraPermission": "Lootr uses your camera to scan real-world objects and turn them into playable mini-games."
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Lootr uses your location to save where the app was launched."
         }
       ]
     ]
