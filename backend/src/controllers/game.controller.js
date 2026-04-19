@@ -1,6 +1,7 @@
 import { generateGameConfig } from '../services/groq.service.js';
 import { saveGameToDB, getAllGamesFromDB } from '../services/db.service.js';
 import { addGameToArcGIS } from '../services/arcgis.service.js';
+import { getMapGamesFromDB } from '../services/db.service.js';
 
 export const generateGame = async (req, res) => {
   try {
@@ -38,6 +39,28 @@ export const getGames = async (req, res) => {
     res.status(200).json(games);
   } catch (error) {
     console.error("Controller Error:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+
+export const getNearbyGames = async (req, res) => {
+  try {
+    const { lat, lng, radius } = req.query;
+
+    if (!lat || !lng) {
+      return res.status(400).json({ error: "Location (lat, lng) is required" });
+    }
+
+    // Default to 5 miles if not specified
+    const searchRadius = radius || 5;
+
+    // 2. Update the function call here
+    const games = await getMapGamesFromDB(parseFloat(lat), parseFloat(lng), parseFloat(searchRadius));
+    
+    console.log(`[SERVER] Found ${games.length} games within ${searchRadius} miles of user.`);
+    res.status(200).json(games);
+  } catch (error) {
+    console.error("Error fetching nearby games:", error);
     res.status(500).json({ error: "Internal Server Error" });
   }
 };

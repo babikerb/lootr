@@ -55,24 +55,21 @@ export const getAllGamesFromDB = async () => {
   }
 };
 
-export const getMapGamesFromDB = async () => {
-  try {
-    const result = await pool.query(`
-      SELECT *
-      FROM games
-      ORDER BY
-        CASE
-          WHEN latitude IS NOT NULL AND longitude IS NOT NULL THEN 0
-          ELSE 1
-        END,
-        created_at DESC
-    `);
+export const getMapGamesFromDB = async (userLat, userLng, radiusInMiles = 5) => {
+  // 1 mile is approx 1609.34 meters
+  const radiusInMeters = radiusInMiles * 1609.34;
 
-    return result.rows;
-  } catch (error) {
-    console.error('[DB] Error fetching map games:', error);
-    throw error;
-  }
+  const query = `
+    SELECT *, 
+    (6371000 * acos(cos(radians($1)) * cos(radians(latitude)) * cos(radians(longitude) - radians($2)) + sin(radians($1)) * sin(radians(latitude)))) AS distance
+    FROM games
+    WHERE (6371000 * acos(cos(radians($1)) * cos(radians(latitude)) * cos(radians(longitude) - radians($2)) + sin(radians($1)) * sin(radians(latitude)))) <= $3
+    ORDER BY distance ASC;
+  `;
+
+  const values = [userLat, userLng, radiusInMeters];
+  const { rows } = await pool.query(query, values);
+  return rows;
 };
 
 export const updateGameLocationInDB = async (gameId, latitude, longitude) => {
