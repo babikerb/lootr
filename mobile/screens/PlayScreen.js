@@ -12,6 +12,8 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { COLORS, getGameTheme } from "../theme";
+import { markGameAsPlayed } from "../utils/scannedGamesStorage";
+import { toTitleCase } from "../utils/text";
 
 const { width: W, height: H } = Dimensions.get("window");
 
@@ -522,9 +524,33 @@ const GAME_LABELS = { dodge:"Dodge", catch:"Catch", balance:"Balance", runner:"R
 const SCORE_LABELS = { dodge:"dodged", catch:"caught", balance:"seconds survived", runner:"obstacles cleared", swipe:"swiped", timing:"perfect hits" };
 const PICKING_SUBTITLE = "This object could work as a couple of game styles. Pick the one you want to play.";
 
+function pluralizeObjectLabel(label, count) {
+  const trimmedLabel = String(label ?? "").trim();
+  if (!trimmedLabel || count === 1) return trimmedLabel;
+
+  const lowerLabel = trimmedLabel.toLowerCase();
+
+  if (/(s|x|z|ch|sh)$/i.test(lowerLabel)) return `${trimmedLabel}es`;
+  if (/[^aeiou]y$/i.test(lowerLabel)) return `${trimmedLabel.slice(0, -1)}ies`;
+
+  return `${trimmedLabel}s`;
+}
+
+function getScoreSummary(gameType, objectLabel, score) {
+  if (gameType === "timing") return "perfect hits";
+  if (gameType === "balance") return SCORE_LABELS.balance;
+
+  const displayObject = pluralizeObjectLabel(objectLabel, score);
+  const actionLabel = SCORE_LABELS[gameType] ?? "scored";
+
+  return displayObject ? `${displayObject} ${actionLabel}` : actionLabel;
+}
+
 // ─── SCREEN ──────────────────────────────────────────────────
 export default function PlayScreen({ route, navigation }) {
-  const { gameConfig, objectLabel } = route.params ?? {};
+  const { gameConfig, objectLabel, initialGameType } = route.params ?? {};
+  const displayTitle = toTitleCase(gameConfig?.title ?? objectLabel ?? "Play");
+  const displayObjectLabel = toTitleCase(objectLabel ?? "");
   const insets = useSafeAreaInsets();
   const primaryType = gameConfig?.gameType ?? "dodge";
   const color = getGameTheme(primaryType);
@@ -539,14 +565,21 @@ export default function PlayScreen({ route, navigation }) {
       .sort((a, b) => b.confidence - a.confidence),
   ];
 
+  const validInitialGameType = allOptions.some(option => option.gameType === initialGameType)
+    ? initialGameType
+    : null;
   const hasChoice = allOptions.length > 1 && allOptions.some(opt => primaryConfidence - opt.confidence <= 0.12);
-  const [phase, setPhase] = useState(hasChoice ? "picking" : "start");
-  const [gameType, setGameType] = useState(hasChoice ? null : primaryType);
+  const [phase, setPhase] = useState(validInitialGameType || !hasChoice ? "start" : "picking");
+  const [gameType, setGameType] = useState(validInitialGameType ?? (hasChoice ? null : primaryType));
   const [finalScore, setFinalScore] = useState(0);
   const [playKey, setPlayKey] = useState(0);
 
   function pickType(type) { setGameType(type); setPhase("start"); }
-  function startGame() { setPlayKey(k => k + 1); setPhase("playing"); }
+  async function startGame() {
+    await markGameAsPlayed({ gameConfig, objectLabel, lastPlayedGameType: gameType });
+    setPlayKey(k => k + 1);
+    setPhase("playing");
+  }
   function handleEnd(score) { setFinalScore(score); setPhase("over"); }
   function replay() { setPlayKey(k => k + 1); setPhase("playing"); }
 
@@ -559,7 +592,7 @@ export default function PlayScreen({ route, navigation }) {
         <Text style={sh.title} numberOfLines={1}>
           {phase === "picking" ? "Choose Your Game"
             : phase === "playing" ? (GAME_LABELS[gameType] ?? "")
-            : objectLabel ?? "Play"}
+            : displayTitle}
         </Text>
       </View>
 
@@ -574,7 +607,7 @@ export default function PlayScreen({ route, navigation }) {
             <View style={[sh.iconRing, { borderColor: color + "44", backgroundColor: color + "12" }]}>
               <ObjIcon name={gameConfig?.icon?.name} size={52} color={color} />
             </View>
-            <Text style={sh.overlayTitle}>{objectLabel}</Text>
+            <Text style={sh.overlayTitle}>{displayObjectLabel}</Text>
             <Text style={sh.overlayHint}>{PICKING_SUBTITLE}</Text>
             <View style={sh.pickGrid}>
               {allOptions.map(opt => {
@@ -600,7 +633,7 @@ export default function PlayScreen({ route, navigation }) {
             <View style={[sh.iconRing, { borderColor: color + "44", backgroundColor: color + "12" }]}>
               <ObjIcon name={gameConfig?.icon?.name} size={52} color={color} />
             </View>
-            <Text style={sh.overlayTitle}>{objectLabel}</Text>
+            <Text style={sh.overlayTitle}>{displayObjectLabel}</Text>
             <Text style={[sh.overlayGameType, { color }]}>{GAME_LABELS[gameType]} Game</Text>
             <Text style={sh.overlayHint}>{GAME_HINTS[gameType]}</Text>
             <TouchableOpacity style={[sh.actionBtn, { backgroundColor: color }]} onPress={startGame}>
@@ -620,7 +653,7 @@ export default function PlayScreen({ route, navigation }) {
             <Text style={sh.overTitle}>Game Over</Text>
             <View style={[sh.scoreCard, { borderColor: color + "44" }]}>
               <Text style={[sh.bigScore, { color }]}>{finalScore}</Text>
-              <Text style={sh.bigScoreLbl}>{gameType === "timing" ? "perfect hits" : `${objectLabel} ${SCORE_LABELS[gameType] ?? "score"}`}</Text>
+              <Text style={sh.bigScoreLbl}>{getScoreSummary(gameType, displayObjectLabel, finalScore)}</Text>
             </View>
             <TouchableOpacity style={[sh.actionBtn, { backgroundColor: color }]} onPress={replay}>
               <Text style={sh.actionBtnTxt}>Play Again</Text>
